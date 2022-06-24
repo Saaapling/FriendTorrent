@@ -1,0 +1,13 @@
+H:\Repos\Bittorrent2.0\BTProtocol\BTProtocol\bin\Debug\netcoreapp3.1\BTProtocol.exe
+H:\Repos\Bittorrent2.0\BTProtocol\BTProtocol\bin\Debug\netcoreapp3.1\BTProtocol.deps.json
+H:\Repos\Bittorrent2.0\BTProtocol\BTProtocol\bin\Debug\netcoreapp3.1\BTProtocol.runtimeconfig.json
+H:\Repos\Bittorrent2.0\BTProtocol\BTProtocol\bin\Debug\netcoreapp3.1\BTProtocol.runtimeconfig.dev.json
+H:\Repos\Bittorrent2.0\BTProtocol\BTProtocol\bin\Debug\netcoreapp3.1\BTProtocol.dll
+H:\Repos\Bittorrent2.0\BTProtocol\BTProtocol\bin\Debug\netcoreapp3.1\BTProtocol.pdb
+H:\Repos\Bittorrent2.0\BTProtocol\BTProtocol\obj\Debug\netcoreapp3.1\BTProtocol.csproj.AssemblyReference.cache
+H:\Repos\Bittorrent2.0\BTProtocol\BTProtocol\obj\Debug\netcoreapp3.1\BTProtocol.AssemblyInfoInputs.cache
+H:\Repos\Bittorrent2.0\BTProtocol\BTProtocol\obj\Debug\netcoreapp3.1\BTProtocol.AssemblyInfo.cs
+H:\Repos\Bittorrent2.0\BTProtocol\BTProtocol\obj\Debug\netcoreapp3.1\BTProtocol.csproj.CoreCompileInputs.cache
+H:\Repos\Bittorrent2.0\BTProtocol\BTProtocol\obj\Debug\netcoreapp3.1\BTProtocol.dll
+H:\Repos\Bittorrent2.0\BTProtocol\BTProtocol\obj\Debug\netcoreapp3.1\BTProtocol.pdb
+H:\Repos\Bittorrent2.0\BTProtocol\BTProtocol\obj\Debug\netcoreapp3.1\BTProtocol.genruntimeconfig.cache
