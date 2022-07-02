@@ -40,7 +40,7 @@ namespace BTProtocol
             return Encoding.UTF8.GetString(WebUtility.UrlEncodeToBytes(Infohash, 0, 20));
         }
 
-        static void Main(string[] args)
+        static void temp_non_main(string[] args)
         {
             var parser = new BencodeParser();
             string path = @"..\..\Resources\ex-arm.torrent";
