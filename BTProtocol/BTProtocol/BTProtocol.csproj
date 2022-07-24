@@ -92,8 +92,8 @@
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
-    <None Include="Resources\Desktop.jpg.torrent" />
-    <None Include="Resources\ex-arm.torrent" />
+    <None Include="Resources\Desktop.torrent" />
+    <None Include="Resources\Archived Torrents\ex-arm.torrent" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.7.2">

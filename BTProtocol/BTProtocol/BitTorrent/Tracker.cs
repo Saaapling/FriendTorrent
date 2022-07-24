@@ -31,12 +31,33 @@ namespace BTProtocol.BitTorrent
         }
 
         public Torrent torrent_file { get; }
-        public string peerid { get; }
+        private static string peerid { get; set; }
         private static BencodeParser parser = new BencodeParser();
 
         private string UrlSafeStringInfohash(byte[] Infohash)
         {
             return Encoding.UTF8.GetString(WebUtility.UrlEncodeToBytes(Infohash, 0, 20));
+        }
+
+        public static void init_peerid()
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("ds_bit");
+            sb.Append(Environment.MachineName.ToString());
+            if (sb.Length >= 20)
+            {
+                peerid = sb.ToString().Substring(0, 20);
+            }
+            else
+            {
+                int rest = 20 - sb.Length;
+                Random random = new Random();
+                for (int i = 0; i < rest; i++)
+                {
+                    sb.Append(random.Next() % 10);
+                }
+                peerid = sb.ToString();
+            }
         }
 
         private string EventToString(Events _event)
@@ -65,31 +86,13 @@ namespace BTProtocol.BitTorrent
         public Tracker(Torrent torrentfile)
         {
             this.torrent_file = torrentfile;
-            StringBuilder sb = new StringBuilder();
-            sb.Append("ds_bit");
-            sb.Append(Environment.MachineName.ToString());
-            if (sb.Length >= 20)
-            {
-                peerid = sb.ToString().Substring(0, 20);
-            }
-            else
-            {
-                int rest = 20 - sb.Length;
-                Random random = new Random();
-                for (int i = 0; i < rest; i++)
-                {
-                    sb.Append(random.Next() % 10);
-                }
-                peerid = sb.ToString();
-            }
         }
 
-        public void SendRecvToTracker(TFData tfdata)
+        public byte[] SendRecvToTracker(TFData tfdata, string announce_url)
         {
-            BDictionary dictionary = torrent_file.ToBDictionary();
 
             StringBuilder sb = new StringBuilder();
-            sb.Append(dictionary["announce"].ToString());
+            sb.Append(announce_url);
             sb.Append("?info_hash=").Append(UrlSafeStringInfohash(torrent_file.GetInfoHashBytes()));
             sb.Append("&peer_id=").Append(peerid);
             sb.Append("&port=").Append(6881);
@@ -115,7 +118,17 @@ namespace BTProtocol.BitTorrent
             Console.WriteLine(string.Join("\n", tracker_dict.Select(m => $"{m.Key}={m.Value}")));
 
             Console.ReadLine();
+
+            return data;
         }
 
+        public void updateTracker(Object input)
+        {
+            BDictionary dictionary = torrent_file.ToBDictionary();
+
+            TFData tfdata = (TFData)input;
+            SendRecvToTracker(tfdata, dictionary["announce"].ToString());
+            Console.WriteLine("Currently I would be contacting the tracker!");
+        }
     }
 }
