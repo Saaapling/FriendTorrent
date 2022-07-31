@@ -49,7 +49,7 @@ namespace BTProtocol.BitTorrent
             this.piece_size = piece_size;
             this.peer_list = new HashSet<(string, int)>();
 
-            peice_status = new int[piece_hash.Length];
+            peice_status = new int[piece_hash.Length / 20];
             bytes_uploaded = 0;
             bytes_downloaded = 0;
             bytes_left = Convert.ToUInt64(piece_size * piece_hash.Length);
@@ -103,6 +103,7 @@ namespace BTProtocol.BitTorrent
                     Stream openFileStream = File.OpenRead(torrent_filedata_path);
                     BinaryFormatter deserializer = new BinaryFormatter();
                     file_data = (TFData)deserializer.Deserialize(openFileStream);
+                    Console.WriteLine(file_data.bytes_left);
                     file_data.reset_status();
 
                     Console.WriteLine("Torrent found: " + torrent_name);

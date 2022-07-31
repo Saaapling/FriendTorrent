@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -18,7 +19,9 @@ namespace BTProtocol.BitTorrent
         public DownloadingPeer(string ipaddr, int port, TFData tfdata) : base(ipaddr, port)
         {
             torrent_data = tfdata;
-            client = new TcpClient(ip, port);
+            IPEndPoint ip_endpoint = new IPEndPoint(IPAddress.Parse(ipaddr), port);
+            client = new TcpClient();
+            client.Connect(ip_endpoint);
             netStream = client.GetStream();
         }
 
@@ -35,7 +38,7 @@ namespace BTProtocol.BitTorrent
              *          immediately created (created after another thread closed due to large number of available peers)
              *      - Exchange handshake with its peeer
              *      - Check whether the peer has any peices we want
-             *          - If so, initiate download requests
+             *          - If so, initiate download requests (Send interested flag)
              *          - If not, close the thread
              */
             MainProc.thread_pool.WaitOne();
@@ -61,7 +64,7 @@ namespace BTProtocol.BitTorrent
 
         void initiate_handshake()
         {
-
+            Console.WriteLine("I would be encrypting and sending a handshake now");
         }
     }
 }

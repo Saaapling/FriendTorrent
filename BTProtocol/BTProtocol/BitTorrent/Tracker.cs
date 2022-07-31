@@ -120,11 +120,13 @@ namespace BTProtocol.BitTorrent
             byte[] buffer = Encoding.UTF8.GetBytes(peers.ToString());
             //Console.WriteLine(string.Join("\n", tracker_dict.Select(m => $"{m.Key}={m.Value}")));
             //Console.ReadLine();
+            Console.WriteLine(buffer.Length);
             for (int i = 0; i < buffer.Length; i += 6)
             {
                 String ip = ((int)buffer[i] + "." + (int)buffer[i + 1] + "." + (int)buffer[i + 2] + "." + (int)buffer[i + 3]);
                 int port = (int)buffer[i + 4] << 8;
                 port += (int)buffer[i + 5];
+                Console.WriteLine(ip + ":" + port);
                 tfdata.peer_list.Add((ip, port));
             }
 
