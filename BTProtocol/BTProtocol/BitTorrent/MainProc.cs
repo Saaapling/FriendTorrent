@@ -10,6 +10,7 @@ using BencodeNET.Objects;
 using BencodeNET.Parsing;
 using BencodeNET.Torrents;
 using System.Threading;
+using System.Collections;
 
 namespace BTProtocol.BitTorrent
 {
@@ -30,11 +31,12 @@ namespace BTProtocol.BitTorrent
         public byte[] piece_hash { get; }
         public long piece_size { get; }
 
-        public bool[] pieces_downloaded;
+        public int[] peice_status; // 0 - Not Downloaded, 1 - Downloaded, 2 - In Progress
         public uint bytes_uploaded;
         public uint bytes_downloaded;
         public UInt64 bytes_left;
 
+        public HashSet<(string, int)> peer_list { get; set; }
 
         public Events _event;
         public bool compact;
@@ -45,13 +47,26 @@ namespace BTProtocol.BitTorrent
             this.resource_path = resource_path;
             this.piece_hash = piece_hash;
             this.piece_size = piece_size;
+            this.peer_list = new HashSet<(string, int)>();
 
-            pieces_downloaded = new bool[piece_hash.Length];
+            peice_status = new int[piece_hash.Length];
             bytes_uploaded = 0;
             bytes_downloaded = 0;
             bytes_left = Convert.ToUInt64(piece_size * piece_hash.Length);
             _event = Events.started;
             compact = true;
+        }
+
+        public void reset_status()
+        {
+            peer_list = new HashSet<(string, int)>();
+            for (int i = 0; i < peice_status.Length; i++)
+            {
+                if (peice_status[i] == 2)
+                {
+                    peice_status[i] = 1;
+                }
+            }
         }
     }
     
@@ -62,6 +77,8 @@ namespace BTProtocol.BitTorrent
         static Dictionary<string, TFData> torrent_file_dict = new Dictionary<string, TFData>();
 
         static BencodeParser parser = new BencodeParser();
+
+        public static Semaphore thread_pool;
 
         private static Dictionary<string, Torrent> parse_torrent_files(string resource_path)
         {
@@ -86,6 +103,7 @@ namespace BTProtocol.BitTorrent
                     Stream openFileStream = File.OpenRead(torrent_filedata_path);
                     BinaryFormatter deserializer = new BinaryFormatter();
                     file_data = (TFData)deserializer.Deserialize(openFileStream);
+                    file_data.reset_status();
 
                     Console.WriteLine("Torrent found: " + torrent_name);
                     torrent_data_files.Remove(torrent_filedata_path);
@@ -128,19 +146,31 @@ namespace BTProtocol.BitTorrent
                 Tracker tracker = new Tracker(torrent.Value);
                 BDictionary dictionary = torrent.Value.ToBDictionary();
                 TFData torrent_data = torrent_file_dict[torrent.Key];
-                byte[] data = tracker.SendRecvToTracker(torrent_data, dictionary["announce"].ToString());
-                BDictionary tracker_dict = parser.Parse<BDictionary>(data);
-
-                Console.WriteLine(tracker_dict["interval"].ToString());
-                int wait_time = Int32.Parse(tracker_dict["interval"].ToString());
-                Console.WriteLine(wait_time);
+                int wait_time = tracker.SendRecvToTracker(torrent_data, dictionary["announce"].ToString());
                 var stateTimer = new Timer(tracker.updateTracker, torrent_data, wait_time * 1000, wait_time * 1000);
-
-                //var stateTimer = new Timer(tracker.updateTracker, torrent_data, 3 * 1000, 3 * 1000);
             }
+
+            // Create thread-pool for downloading and uploading (29 down, 1 up)
+            thread_pool = new Semaphore(30, 30);
+
+            // For each torrent, spin up threads for each peer (blocks when thread_pool is exhausted)
+            // Potential Issues: For torrents with large # of peers, could be inefficient once download fiinishes and process cycles through remaining peers
+            foreach (TFData data in torrent_file_dict.Values)
+            {
+                foreach ((String, int) ip_addr in data.peer_list)
+                {
+                    thread_pool.WaitOne();
+                    Console.WriteLine(ip_addr.Item1 + ":" + ip_addr.Item2);
+                    DownloadingPeer new_peer = new DownloadingPeer(ip_addr.Item1, ip_addr.Item2, data);
+                    thread_pool.Release();
+                    Thread t = new Thread(new ThreadStart(new_peer.start_peer_thread));
+                }
+            }
+
 
             //There exists the question of how to handle the main thread: currently it exits after completing the above task, but in the
             //final form, the main thread presumable is connected to a window/display and would not close until the user exits the window
+            //In addition, the seeding peer would also never close. 
             //Thus, in the current state, this long sleep represents the main thraed having a window open
 
             //Sleeps for an hour

@@ -88,7 +88,7 @@ namespace BTProtocol.BitTorrent
             this.torrent_file = torrentfile;
         }
 
-        public byte[] SendRecvToTracker(TFData tfdata, string announce_url)
+        public int SendRecvToTracker(TFData tfdata, string announce_url)
         {
 
             StringBuilder sb = new StringBuilder();
@@ -102,7 +102,7 @@ namespace BTProtocol.BitTorrent
             sb.Append("&event=").Append(EventToString(tfdata._event));
             sb.Append("&compact=").Append(tfdata.compact);
 
-            Console.WriteLine(sb.ToString());
+            //Console.WriteLine(sb.ToString());
 
             HttpWebRequest HttpWReq = (HttpWebRequest)WebRequest.Create(sb.ToString());
             HttpWebResponse HttpWResp = (HttpWebResponse)HttpWReq.GetResponse();
@@ -115,11 +115,20 @@ namespace BTProtocol.BitTorrent
             }
 
             BDictionary tracker_dict = parser.Parse<BDictionary>(data);
-            Console.WriteLine(string.Join("\n", tracker_dict.Select(m => $"{m.Key}={m.Value}")));
 
-            Console.ReadLine();
+            BString peers = tracker_dict.Get<BString>("peers");
+            byte[] buffer = Encoding.UTF8.GetBytes(peers.ToString());
+            //Console.WriteLine(string.Join("\n", tracker_dict.Select(m => $"{m.Key}={m.Value}")));
+            //Console.ReadLine();
+            for (int i = 0; i < buffer.Length; i += 6)
+            {
+                String ip = ((int)buffer[i] + "." + (int)buffer[i + 1] + "." + (int)buffer[i + 2] + "." + (int)buffer[i + 3]);
+                int port = (int)buffer[i + 4] << 8;
+                port += (int)buffer[i + 5];
+                tfdata.peer_list.Add((ip, port));
+            }
 
-            return data;
+            return Int32.Parse(tracker_dict["interval"].ToString());
         }
 
         public void updateTracker(Object input)
@@ -128,7 +137,6 @@ namespace BTProtocol.BitTorrent
 
             TFData tfdata = (TFData)input;
             SendRecvToTracker(tfdata, dictionary["announce"].ToString());
-            Console.WriteLine("Currently I would be contacting the tracker!");
         }
     }
 }

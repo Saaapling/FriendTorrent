@@ -1,8 +1,11 @@
 # Bittorrent-2.0-TBD-
 
-Todo (Revisions):
- - Move parsing torrent files out of Main
- - Add async threads to handle periodic tracker requests
-
-Next Step:
+Todo:
  - Peerlist / Peer Class
+ - Open port for seeding 
+ - Job based implementation for peers
+ - file download
+
+
+Nice to have:
+ - UDP Tracking

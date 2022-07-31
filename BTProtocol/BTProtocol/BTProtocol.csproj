@@ -84,7 +84,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BitTorrent\DownloadingPeer.cs" />
     <Compile Include="BitTorrent\MainProc.cs" />
+    <Compile Include="BitTorrent\Peer.cs" />
+    <Compile Include="BitTorrent\SeedingPeer.cs" />
+    <Compile Include="BitTorrent\StateObject.cs" />
     <Compile Include="BitTorrent\Tracker.cs" />
     <Compile Include="Samples\Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -92,8 +96,8 @@
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
-    <None Include="Resources\Desktop.torrent" />
-    <None Include="Resources\Archived Torrents\ex-arm.torrent" />
+    <None Include="Resources\ex-arm.torrent" />
+    <None Include="Resources\Archived Torrents\Desktop.torrent" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.7.2">
