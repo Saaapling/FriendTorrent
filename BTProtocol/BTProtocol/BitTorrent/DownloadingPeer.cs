@@ -60,11 +60,48 @@ namespace BTProtocol.BitTorrent
 
             // Exchange a handshake with the associated peer
             initiate_handshake();
+
+            recieve_packet();
         }
 
-        void initiate_handshake()
+        private void initiate_handshake()
         {
-            Console.WriteLine("I would be encrypting and sending a handshake now");
+            byte[] message = new byte[68];
+            // Message Length
+            message[0] = 19;
+            Buffer.BlockCopy(Encoding.UTF8.GetBytes("BitTorrent protocol"), 0, message, 1, 19);
+            Buffer.BlockCopy(Encoding.UTF8.GetBytes(torrent_data.info_hash), 0, message, 28, 20);
+            Buffer.BlockCopy(Encoding.UTF8.GetBytes(MainProc.peerid), 0, message, 48, 20);
+
+            netStream.Write(message, 0, message.Length);
+        }
+
+        public void recieve_packet()
+        {
+            Console.WriteLine("I got here");
+
+            // Todo: implement getmessagetype, move this into handshake response
+            // Get Handshake from peer
+            byte[] bytes = new byte[68];
+            int byteRead = netStream.Read(bytes, 0, 68);
+
+            Utils.WriteToFile("../handshake", bytes);
+
+            if (bytes[0] != 19)
+            {
+                Console.WriteLine("Invalid handshake, first byte must equal 19");
+            }
+
+            if (Encoding.UTF8.GetString(bytes.Skip(1).Take(19).ToArray()) != "BitTorrent protocol")
+            {
+                Console.WriteLine("Invalid handshake, protocol must equal \"BitTorrent protocol\"");
+            }
+
+            byte[] peer_hash = bytes.Skip(28).Take(20).ToArray();
+            if (!peer_hash.SequenceEqual(Encoding.UTF8.GetBytes(torrent_data.info_hash)))
+            {
+                Console.WriteLine("Invalid handshake, peer returned a different info_hash");
+            }
         }
     }
 }

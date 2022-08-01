@@ -28,6 +28,7 @@ namespace BTProtocol.BitTorrent
         public string torrent_name { get; }
         public string resource_path { get; }
 
+        public string info_hash { get; }
         public byte[] piece_hash { get; }
         public long piece_size { get; }
 
@@ -39,12 +40,13 @@ namespace BTProtocol.BitTorrent
         public HashSet<(string, int)> peer_list { get; set; }
 
         public Events _event;
-        public bool compact;
+        public byte compact; // 0 - False, 1 - True
 
-        public TFData(string torrent_name, string resource_path, byte[] piece_hash, long piece_size)
+        public TFData(string torrent_name, string resource_path, string info_hash, byte[] piece_hash, long piece_size)
         {
             this.torrent_name = torrent_name;
             this.resource_path = resource_path;
+            this.info_hash = info_hash;
             this.piece_hash = piece_hash;
             this.piece_size = piece_size;
             this.peer_list = new HashSet<(string, int)>();
@@ -52,9 +54,9 @@ namespace BTProtocol.BitTorrent
             peice_status = new int[piece_hash.Length / 20];
             bytes_uploaded = 0;
             bytes_downloaded = 0;
-            bytes_left = Convert.ToUInt64(piece_size * piece_hash.Length);
+            bytes_left = Convert.ToUInt64(piece_size * piece_hash.Length / 20);
             _event = Events.started;
-            compact = true;
+            compact = 1;
         }
 
         public void reset_status()
@@ -72,13 +74,34 @@ namespace BTProtocol.BitTorrent
     
     class MainProc
     {
+
+        public static string peerid { get; set; }
         const string resource_path = @"../../Resources/";
         const string serailized_path = resource_path + "TorrentData/";
         static Dictionary<string, TFData> torrent_file_dict = new Dictionary<string, TFData>();
 
-        static BencodeParser parser = new BencodeParser();
-
         public static Semaphore thread_pool;
+
+        private static void init_peerid()
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("ds_bit");
+            sb.Append(Environment.MachineName.ToString());
+            if (sb.Length >= 20)
+            {
+                peerid = sb.ToString().Substring(0, 20);
+            }
+            else
+            {
+                int rest = 20 - sb.Length;
+                Random random = new Random();
+                for (int i = 0; i < rest; i++)
+                {
+                    sb.Append(random.Next() % 10);
+                }
+                peerid = sb.ToString();
+            }
+        }
 
         private static Dictionary<string, Torrent> parse_torrent_files(string resource_path)
         {
@@ -96,14 +119,13 @@ namespace BTProtocol.BitTorrent
                 string torrent_name = file.Split('/').Last();
                 torrent_name = torrent_name.Substring(0, torrent_name.Length - 8);
                 string torrent_filedata_path = serailized_path + torrent_name;
-                Torrent torrent_file = parser.Parse<Torrent>(file);
+                Torrent torrent_file = Utils.parser.Parse<Torrent>(file);
                 TFData file_data;
                 if (File.Exists(torrent_filedata_path))
                 {
                     Stream openFileStream = File.OpenRead(torrent_filedata_path);
                     BinaryFormatter deserializer = new BinaryFormatter();
                     file_data = (TFData)deserializer.Deserialize(openFileStream);
-                    Console.WriteLine(file_data.bytes_left);
                     file_data.reset_status();
 
                     Console.WriteLine("Torrent found: " + torrent_name);
@@ -111,7 +133,7 @@ namespace BTProtocol.BitTorrent
                 }
                 else
                 {
-                    file_data = new TFData(torrent_name, file, torrent_file.Pieces, torrent_file.PieceSize);
+                    file_data = new TFData(torrent_name, file, torrent_file.GetInfoHash(), torrent_file.Pieces, torrent_file.PieceSize);
 
                     Console.WriteLine("Creating new TFData serialized object: " + torrent_name);
                     Stream SaveFileStream = File.Create(serailized_path + torrent_name);
@@ -137,7 +159,7 @@ namespace BTProtocol.BitTorrent
 
         static void Main(string[] args)
         {
-            Tracker.init_peerid();
+            init_peerid();
             Dictionary<string, Torrent> torrents = parse_torrent_files(resource_path);
 
             // For each torrent file found, create and contact its tacker, and set up
@@ -165,6 +187,7 @@ namespace BTProtocol.BitTorrent
                     DownloadingPeer new_peer = new DownloadingPeer(ip_addr.Item1, ip_addr.Item2, data);
                     thread_pool.Release();
                     Thread t = new Thread(new ThreadStart(new_peer.start_peer_thread));
+                    t.Start();
                 }
             }
 
