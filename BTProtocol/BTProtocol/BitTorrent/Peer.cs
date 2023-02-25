@@ -37,6 +37,6 @@ namespace BTProtocol.BitTorrent
             this.ip = ipaddr;
         }
 
-        public abstract void start_peer_thread();
+        public abstract void StartPeerThread();
     }
 }

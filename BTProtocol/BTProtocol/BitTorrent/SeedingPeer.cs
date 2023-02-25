@@ -26,7 +26,7 @@ namespace BTProtocol.BitTorrent
             Socket handler = listener.Accept();
         }
 
-        public override void start_peer_thread()
+        public override void StartPeerThread()
         {
             throw new NotImplementedException();
         }

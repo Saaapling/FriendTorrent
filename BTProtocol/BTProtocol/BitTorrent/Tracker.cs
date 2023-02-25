@@ -90,7 +90,7 @@ namespace BTProtocol.BitTorrent
             return Int32.Parse(tracker_dict["interval"].ToString());
         }
 
-        public void updateTracker(Object input)
+        public void UpdateTracker(Object input)
         {
             BDictionary dictionary = torrent_file.ToBDictionary();
 

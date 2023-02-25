@@ -59,7 +59,7 @@ namespace BTProtocol.BitTorrent
             compact = 1;
         }
 
-        public void reset_status()
+        public void ResetStatus()
         {
             peer_list = new HashSet<(string, int)>();
             for (int i = 0; i < peice_status.Length; i++)
@@ -82,7 +82,7 @@ namespace BTProtocol.BitTorrent
 
         public static Semaphore thread_pool;
 
-        private static void init_peerid()
+        private static void InitPeerid()
         {
             StringBuilder sb = new StringBuilder();
             sb.Append("ds_bit");
@@ -126,7 +126,7 @@ namespace BTProtocol.BitTorrent
                     Stream openFileStream = File.OpenRead(torrent_filedata_path);
                     BinaryFormatter deserializer = new BinaryFormatter();
                     file_data = (TFData)deserializer.Deserialize(openFileStream);
-                    file_data.reset_status();
+                    file_data.ResetStatus();
 
                     Console.WriteLine("Torrent found: " + torrent_name);
                     torrent_data_files.Remove(torrent_filedata_path);
@@ -159,7 +159,7 @@ namespace BTProtocol.BitTorrent
 
         static void Main(string[] args)
         {
-            init_peerid();
+            InitPeerid();
             Dictionary<string, Torrent> torrents = parse_torrent_files(resource_path);
 
             // For each torrent file found, create and contact its tacker, and set up
@@ -170,7 +170,7 @@ namespace BTProtocol.BitTorrent
                 BDictionary dictionary = torrent.Value.ToBDictionary();
                 TFData torrent_data = torrent_file_dict[torrent.Key];
                 int wait_time = tracker.SendRecvToTracker(torrent_data, dictionary["announce"].ToString());
-                var stateTimer = new Timer(tracker.updateTracker, torrent_data, wait_time * 1000, wait_time * 1000);
+                var state_timer = new Timer(tracker.UpdateTracker, torrent_data, wait_time * 1000, wait_time * 1000);
             }
 
             // Create thread-pool for downloading and uploading (29 down, 1 up)
@@ -186,7 +186,7 @@ namespace BTProtocol.BitTorrent
                     Console.WriteLine(ip_addr.Item1 + ":" + ip_addr.Item2);
                     DownloadingPeer new_peer = new DownloadingPeer(ip_addr.Item1, ip_addr.Item2, data);
                     thread_pool.Release();
-                    Thread t = new Thread(new ThreadStart(new_peer.start_peer_thread));
+                    Thread t = new Thread(new ThreadStart(new_peer.StartPeerThread));
                     t.Start();
                 }
             }
