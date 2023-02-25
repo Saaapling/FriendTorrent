@@ -27,6 +27,9 @@ Todo:
 		- When selecting the next peice to download, the thread will prioritize peices that its current peer has available
 
 
+Tracker Behavior:
+	- 
+
 Useful Links:
 	- http://www.bittorrent.org/beps/bep_0015.html
 	- https://www.bittorrent.org/beps/bep_0003.html

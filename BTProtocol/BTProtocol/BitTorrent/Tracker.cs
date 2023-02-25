@@ -74,7 +74,6 @@ namespace BTProtocol.BitTorrent
             }
 
             BDictionary tracker_dict = Utils.parser.Parse<BDictionary>(data);
-            
             BString peers = tracker_dict.Get<BString>("peers");
             byte[] buffer = peers.Value.ToArray();
 
@@ -83,10 +82,9 @@ namespace BTProtocol.BitTorrent
                 String ip = ((int)buffer[i] + "." + (int)buffer[i + 1] + "." + (int)buffer[i + 2] + "." + (int)buffer[i + 3]);
                 int port = (int)buffer[i + 4] << 8;
                 port += (int)buffer[i + 5];
-                //Console.WriteLine(ip + ":" + port);
                 tfdata.peer_list.Add((ip, port));
             }
-
+              
             return Int32.Parse(tracker_dict["interval"].ToString());
         }
 

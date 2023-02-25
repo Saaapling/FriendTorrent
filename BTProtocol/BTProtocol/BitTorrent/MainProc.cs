@@ -103,7 +103,7 @@ namespace BTProtocol.BitTorrent
             }
         }
 
-        private static Dictionary<string, Torrent> parse_torrent_files(string resource_path)
+        private static Dictionary<string, Torrent> ParseTorrentFiles(string resource_path)
         {
             /*
              Iterates through the torrent files in / resources, creating new serialized
@@ -160,9 +160,9 @@ namespace BTProtocol.BitTorrent
         static void Main(string[] args)
         {
             InitPeerid();
-            Dictionary<string, Torrent> torrents = parse_torrent_files(resource_path);
+            Dictionary<string, Torrent> torrents = ParseTorrentFiles(resource_path);
 
-            // For each torrent file found, create and contact its tacker, and set up
+            // For each torrent file found, create and contact its tracker, and set up
             // Timers to reconnect with the tracker after a specified amount of time has passed
             foreach (KeyValuePair<string, Torrent> torrent in torrents)
             {
@@ -170,11 +170,12 @@ namespace BTProtocol.BitTorrent
                 BDictionary dictionary = torrent.Value.ToBDictionary();
                 TFData torrent_data = torrent_file_dict[torrent.Key];
                 int wait_time = tracker.SendRecvToTracker(torrent_data, dictionary["announce"].ToString());
+
                 var state_timer = new Timer(tracker.UpdateTracker, torrent_data, wait_time * 1000, wait_time * 1000);
             }
 
             // Create thread-pool for downloading and uploading (29 down, 1 up)
-            thread_pool = new Semaphore(30, 30);
+            thread_pool = new Semaphore(1, 1);
 
             // For each torrent, spin up threads for each peer (blocks when thread_pool is exhausted)
             // Potential Issues: For torrents with large # of peers, could be inefficient once download fiinishes and process cycles through remaining peers

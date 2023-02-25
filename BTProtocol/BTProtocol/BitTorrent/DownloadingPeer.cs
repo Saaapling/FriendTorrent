@@ -61,8 +61,10 @@ namespace BTProtocol.BitTorrent
 
             // Exchange a handshake with the associated peer
             InitiateHandshake();
-
-            ReceivePacket();
+            while(true)
+            {
+                ReceivePacket();
+            }
         }
 
         private void InitiateHandshake()

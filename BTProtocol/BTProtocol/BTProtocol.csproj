@@ -98,7 +98,10 @@
     <None Include="packages.config" />
     <None Include="Resources\Archived Torrents\ex-arm.torrent" />
     <None Include="Resources\Archived Torrents\Desktop.torrent" />
-    <None Include="Resources\kubuntu-16.04.6-desktop-amd64.iso.torrent" />
+    <None Include="Resources\Archived Torrents\kubuntu-16.04.6-desktop-amd64.iso.torrent" />
+    <None Include="Resources\Archived Torrents\The Matrix %281999%29 [720p] [BluRay] [YTS.MX].torrent" />
+    <None Include="Resources\Archived Torrents\ubuntu-22.10-desktop-amd64.iso.torrent" />
+    <None Include="Resources\[Erai-raws] Cyberpunk - Edgerunners - 01 _ 10 [1080p][Multiple Subtitle].torrent" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.7.2">
