@@ -9,7 +9,8 @@ using System.Threading.Tasks;
 
 namespace BTProtocol.BitTorrent
 {
-    internal abstract class Peer
+   
+    internal class Peer
     {
         public enum MessageType : int
         {
@@ -28,6 +29,8 @@ namespace BTProtocol.BitTorrent
             Port = 9,
         }
 
+        public bool[] piece_bitfield { get; set; }
+
         public string ip { get; set; }
         public int port { get; set; }
 
@@ -36,7 +39,5 @@ namespace BTProtocol.BitTorrent
             this.port = port;
             this.ip = ipaddr;
         }
-
-        public abstract void StartPeerThread();
     }
 }

@@ -8,14 +8,15 @@ using System.Threading.Tasks;
 
 namespace BTProtocol.BitTorrent
 {
-    internal class SeedingPeer : Peer
+    public class SeedingTask
     {
-        public SeedingPeer(string ipaddr, int port) : base(ipaddr, port)
+        public SeedingTask()
         {
         }
 
         private void StartServer()
         {
+            /*
             IPAddress ipAddress = IPAddress.Parse(ip);
             IPEndPoint local = new IPEndPoint(ipAddress, port);
 
@@ -24,9 +25,12 @@ namespace BTProtocol.BitTorrent
 
             listener.Listen(100);
             Socket handler = listener.Accept();
+            */
+
+            throw new NotImplementedException();
         }
 
-        public override void StartPeerThread()
+        public Action StartTask()
         {
             throw new NotImplementedException();
         }

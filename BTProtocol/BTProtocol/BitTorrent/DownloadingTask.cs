@@ -9,21 +9,18 @@ using System.Threading;
 
 namespace BTProtocol.BitTorrent
 {
-    internal class DownloadingPeer : Peer
+    public class DownloadingTask
     {
 
         TFData torrent_data;
+        Peer connection;
         TcpClient client;
         NetworkStream netstream;
         bool[] bitfield;
 
-        public DownloadingPeer(string ipaddr, int port, TFData tfdata) : base(ipaddr, port)
+        public DownloadingTask(TFData tfdata)
         {
             torrent_data = tfdata;
-            IPEndPoint ip_endpoint = new IPEndPoint(IPAddress.Parse(ipaddr), port);
-            client = new TcpClient();
-            client.Connect(ip_endpoint);
-            netstream = client.GetStream();
         }
 
         public void ExitThread()
@@ -31,16 +28,31 @@ namespace BTProtocol.BitTorrent
             MainProc.thread_pool.Release();
         }
 
-        public override void StartPeerThread()
+        public void InitiateConnection((String, int) peer_addr)
+        {
+            torrent_data.visited_peers.Add(peer_addr);
+            String ipaddr = peer_addr.Item1;
+            int port = peer_addr.Item2;
+            Peer connection = new Peer(ipaddr, port);
+
+            IPEndPoint ip_endpoint = new IPEndPoint(IPAddress.Parse(ipaddr), port);
+            client = new TcpClient();
+            client.Connect(ip_endpoint);
+            netstream = client.GetStream();
+            Thread.Sleep(20000);
+
+            // Exchange a handshake with the new peer
+            InitiateHandshake();
+            ReceivePacket();
+        }
+
+        public void StartTask()
         {
             /*
-             * Downloading Peer Thread initialization steps:
-             *      - Check whether there remains to be any peices to be downloaded (Done first because it is possible this thread was not
-             *          immediately created (created after another thread closed due to large number of available peers)
-             *      - Exchange handshake with its peeer
-             *      - Check whether the peer has any peices we want
-             *          - If so, initiate download requests (Send interested flag)
-             *          - If not, close the thread
+             * Downloading Task initialization steps:
+             *      - Check whether there remains to be any peices to be downloaded
+             *      - Find an available, unvisted peer to connect to
+             *      - Connect to the peer and start downloading, or exit the Task if no peers are avaiable
              */
             MainProc.thread_pool.WaitOne();
 
@@ -59,10 +71,23 @@ namespace BTProtocol.BitTorrent
                 ExitThread();
             }
 
-            // Exchange a handshake with the associated peer
-            InitiateHandshake();
+            // Find an unvisited peer to connect to
+            (String, int) peer_addr = ("", 0);
+            foreach ((String, int) ip_addr in torrent_data.peer_list)
+            {
+                if (!torrent_data.visited_peers.Contains(ip_addr))
+                {
+                    peer_addr = ip_addr;
+                    break;
+                }
+            }
 
-            ReceivePacket();
+            if (peer_addr.Item1 != "")
+                InitiateConnection(peer_addr);
+            else
+                Console.WriteLine("No Peer found");
+                ExitThread();
+
         }
 
         private void InitiateHandshake()

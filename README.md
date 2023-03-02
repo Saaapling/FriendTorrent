@@ -16,11 +16,12 @@ Todo:
 	 - Handle other Message types in Downloading Peer
 
 
- Thread Logic/Ideas
+Logic/Ideas
 	- Create up to N threads for connections to peers. 
 		- 1 Thread will be used to upload peices to connected peers
+		- 1 Thread will be used to update all the trackers for the torrents we own
 		- Remaining Threads will download missing torrent peices
-	- Thread Logic:
+	- Task/Logic:
 		- Each thread will start by selecting a peice to download.
 		- It will go through the list of unconnected peers until it finds one who has the peice it is looking for
 		- It will then download that peice from the selected peer

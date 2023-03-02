@@ -84,13 +84,15 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BitTorrent\DownloadingPeer.cs" />
+    <Compile Include="BitTorrent\DownloadingTask.cs" />
     <Compile Include="BitTorrent\MainProc.cs" />
     <Compile Include="BitTorrent\Peer.cs" />
-    <Compile Include="BitTorrent\SeedingPeer.cs" />
+    <Compile Include="BitTorrent\SeedingTask.cs" />
+    <Compile Include="BitTorrent\TFData.cs" />
     <Compile Include="BitTorrent\Tracker.cs" />
     <Compile Include="BitTorrent\Utils.cs" />
-    <Compile Include="Samples\Program.cs" />
+    <Compile Include="Samples\AsyncTaskTest.cs" />
+    <Compile Include="Samples\TorrentAnnounceTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -98,6 +100,7 @@
     <None Include="packages.config" />
     <None Include="Resources\Archived Torrents\ex-arm.torrent" />
     <None Include="Resources\Archived Torrents\Desktop.torrent" />
+    <None Include="Resources\CentOS-7-x86_64-DVD-2009.torrent" />
     <None Include="Resources\kubuntu-16.04.6-desktop-amd64.iso.torrent" />
   </ItemGroup>
   <ItemGroup>

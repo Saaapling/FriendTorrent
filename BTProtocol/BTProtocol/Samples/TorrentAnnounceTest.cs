@@ -14,7 +14,7 @@ using System.IO;
 
 namespace BTProtocol
 {
-    class Program
+    class TorrentAnnounceTest
     {
 
         static void PrintTorrentDict()
