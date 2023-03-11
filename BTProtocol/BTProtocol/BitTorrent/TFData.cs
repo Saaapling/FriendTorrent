@@ -24,7 +24,7 @@ namespace BTProtocol.BitTorrent
         public byte[] piece_hash { get; }
         public long piece_size { get; }
 
-        public int[] peice_status; // 0 - Not Downloaded, 1 - Downloaded, 2 - In Progress
+        public int[] piece_status; // 0 - Not Downloaded, 1 - Downloaded, 2 - In Progress
         public uint bytes_uploaded;
         public uint bytes_downloaded;
         public UInt64 bytes_left;
@@ -45,7 +45,7 @@ namespace BTProtocol.BitTorrent
             this.peer_list = new HashSet<(string, int)>();
             this.visited_peers = new HashSet<(string, int)>();
 
-            peice_status = new int[piece_hash.Length / 20];
+            piece_status = new int[piece_hash.Length / 20];
             bytes_uploaded = 0;
             bytes_downloaded = 0;
             bytes_left = Convert.ToUInt64(piece_size * piece_hash.Length / 20);
@@ -57,13 +57,30 @@ namespace BTProtocol.BitTorrent
         {
             peer_list.Clear();
             visited_peers.Clear();
-            for (int i = 0; i < peice_status.Length; i++)
+            for (int i = 0; i < piece_status.Length; i++)
             {
-                if (peice_status[i] == 2)
+                if (piece_status[i] == 2)
                 {
-                    peice_status[i] = 1;
+                    piece_status[i] = 1;
                 }
             }
+        }
+
+        public bool CheckDownloadStatus()
+        {
+            for (int i = 0; i < piece_status.Length; i++)
+            {
+                if (piece_status[i] == 0)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        public void SetPieceStatus(int piece, int status)
+        {
+            piece_status[piece] = status;
         }
     }
 

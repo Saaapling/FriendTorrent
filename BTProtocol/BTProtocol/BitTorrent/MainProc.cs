@@ -23,7 +23,9 @@ namespace BTProtocol.BitTorrent
         const string serailized_path = resource_path + "TorrentData/";
         static Dictionary<string, TFData> torrent_file_dict = new Dictionary<string, TFData>();
 
+        public static Mutex main_mutex = new Mutex();
         public static Semaphore thread_pool;
+        public static Semaphore main_semaphore;
 
         private static void InitPeerid()
         {
@@ -117,23 +119,24 @@ namespace BTProtocol.BitTorrent
             }
 
             // Create thread-pool for downloading and uploading (29 down, 1 up)
-            thread_pool = new Semaphore(30, 30);
+            int threads = 1;
+            thread_pool = new Semaphore(threads, threads);
+            main_semaphore = new Semaphore(1,1);
 
-            // For each torrent, spin up threads to download peices (blocks when thread_pool is exhausted)
+            // For each torrent, spin up threads to download pieces (blocks when thread_pool is exhausted)
             // Only downloads from one torrent at a time, once a torrent is finished downloading, start on the next torrent
             // Todo: Implement logic to switch from one torrent to the next (and to mark finished torrents as complete)
             Queue<TFData> download_queue = new Queue<TFData>(torrent_file_dict.Values);
             while (download_queue.Count > 0)
             {
-                Console.WriteLine(download_queue.Peek().visited_peers.Count());
+                main_semaphore.WaitOne();
+                Console.WriteLine("Mutex Acquired");
                 thread_pool.WaitOne();
                 DownloadingTask task = new DownloadingTask(download_queue.Peek());
                 thread_pool.Release();
                 Task t = new Task(() => task.StartTask());
                 t.Start();
-                Thread.Sleep(1000);
             }
         }
-
     }
 }

@@ -21,11 +21,60 @@ namespace BTProtocol.BitTorrent
         public DownloadingTask(TFData tfdata)
         {
             torrent_data = tfdata;
+            client = new TcpClient();
         }
 
         public void ExitThread()
         {
             MainProc.thread_pool.Release();
+        }
+
+        public void StartTask()
+        {
+            /*
+             * Downloading Task initialization steps:
+             *      - Check whether there remains to be any pieces to be downloaded
+             *      - Find an available, unvisted peer to connect to
+             *      - Connect to the peer and start downloading, or exit the Task if no peers are avaiable
+             */
+            Console.WriteLine("A");
+            // Call WaitOne to decrement the count of available threads.
+            MainProc.thread_pool.WaitOne();
+            // Release the lock on main so it can continue execution.
+            // MainProc.main_mutex.ReleaseMutex();
+            MainProc.main_semaphore.Release();
+            Console.WriteLine("B");
+
+            // Check the TFData to see if there are pieces that stll need to be downloaded. 
+            if (torrent_data.CheckDownloadStatus())
+            {
+                ExitThread();
+            }
+
+            (String, int) peer_addr;
+            while (!client.Connected) 
+            {
+                peer_addr = FindAvailablePeer();
+                if (peer_addr.Item1 != "")
+                    InitiateConnection(peer_addr);
+                else
+                    ExitThread();
+            }
+            InitiateHandshake();
+        }
+
+        public (String, int) FindAvailablePeer()
+        {
+            // Find an unvisited peer to connect to
+            (String, int) peer_addr = ("", 0);
+            foreach ((String, int) ip_addr in torrent_data.peer_list)
+            {
+                if (!torrent_data.visited_peers.Contains(ip_addr))
+                {
+                    return ip_addr;
+                }
+            }
+            return ("", -1);
         }
 
         public void InitiateConnection((String, int) peer_addr)
@@ -36,58 +85,16 @@ namespace BTProtocol.BitTorrent
             Peer connection = new Peer(ipaddr, port);
 
             IPEndPoint ip_endpoint = new IPEndPoint(IPAddress.Parse(ipaddr), port);
-            client = new TcpClient();
-            client.Connect(ip_endpoint);
-            netstream = client.GetStream();
-            Thread.Sleep(20000);
 
-            // Exchange a handshake with the new peer
-            InitiateHandshake();
-            ReceivePacket();
-        }
-
-        public void StartTask()
-        {
-            /*
-             * Downloading Task initialization steps:
-             *      - Check whether there remains to be any peices to be downloaded
-             *      - Find an available, unvisted peer to connect to
-             *      - Connect to the peer and start downloading, or exit the Task if no peers are avaiable
-             */
-            MainProc.thread_pool.WaitOne();
-
-            // Check the TFData to see what peices remain to be downloaded. 
-            bool complete = true;
-            foreach (int peice_status in torrent_data.peice_status)
+            if (!client.ConnectAsync("173.67.0.40", 80).Wait(10000))
             {
-                if (peice_status == 0)
-                {
-                    complete = false;
-                    break;
-                }
+                Console.WriteLine("Peer refused connection");
             }
-            if (complete)
-            {
-                ExitThread();
-            }
-
-            // Find an unvisited peer to connect to
-            (String, int) peer_addr = ("", 0);
-            foreach ((String, int) ip_addr in torrent_data.peer_list)
-            {
-                if (!torrent_data.visited_peers.Contains(ip_addr))
-                {
-                    peer_addr = ip_addr;
-                    break;
-                }
-            }
-
-            if (peer_addr.Item1 != "")
-                InitiateConnection(peer_addr);
             else
-                Console.WriteLine("No Peer found");
-                ExitThread();
-
+            {
+                netstream = client.GetStream();
+                netstream.ReadTimeout = 30000;
+            }
         }
 
         private void InitiateHandshake()
@@ -102,18 +109,40 @@ namespace BTProtocol.BitTorrent
             netstream.Write(message, 0, message.Length);
         }
 
-        public void ReceivePacket()
+        public void ReceivePacket(IAsyncResult ar)
         {
             Console.WriteLine("I got here");
+            /*
+             * Continuously read in new packets from the peer.
+             * The proess of reading in packets is as follows:
+             *      - Read in 4 bytes to determine the size of the packets. If the size is 0, it is a keep-alive packet
+             *      - Read in the full packet to a byte array with size as specified 
+             *      - Get the message type of the packet (First 4 bytes)
+             *      - Use a case statement to proess the full packet
+             *      - Continue readng packets from the peer until the peer closes the connection, or there are no more pieces to download from the peer
+            */
+            while(true)//while (torrent_data.CheckDownloadStatus())
+            {
+                byte[] byte_buffer = new byte[12];
+                netstream.Read(byte_buffer, 0, 11);
+                Console.WriteLine(byte_buffer);
+                /*byte[] byte_buffer = new byte[4];
+                int packet_size = 0;
+                while (packet_size == 0)
+                {
+                    netstream.Read(byte_buffer, 0, 4);
+                    packet_size = BitConverter.ToInt32(byte_buffer, 0);
+                }
+                Console.WriteLine("Packet Size: ");
+                Console.WriteLine(packet_size);*/
+                Thread.Sleep(50000);
+            }
+        }
 
-            // Todo: implement getmessagetype, move this into handshake response
-            // Get Handshake from peer
+        public void ReceiveHandshake()
+        {
             byte[] bytes = new byte[68];
-            Thread.Sleep(5000);
             int bytes_read = netstream.Read(bytes, 0, 68);
-
-            Console.WriteLine(bytes_read);
-            Utils.WriteToFile("../handshake", bytes);
 
             if (bytes[0] != 19)
             {
