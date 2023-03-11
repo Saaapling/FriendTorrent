@@ -86,7 +86,7 @@ namespace BTProtocol.BitTorrent
 
             IPEndPoint ip_endpoint = new IPEndPoint(IPAddress.Parse(ipaddr), port);
 
-            if (!client.ConnectAsync("173.67.0.40", 80).Wait(10000))
+            if (!client.ConnectAsync(ipaddr, 80).Wait(10000))
             {
                 Console.WriteLine("Peer refused connection");
             }
