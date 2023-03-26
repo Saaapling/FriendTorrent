@@ -9,35 +9,31 @@ using System.Threading.Tasks;
 
 namespace BTProtocol.BitTorrent
 {
-   
-    internal class Peer
+    public enum MessageType : int
     {
-        public enum MessageType : int
-        {
-            Unknown = -3,
-            Handshake = -2,
-            KeepAlive = -1,
-            Choke = 0,
-            Unchoke = 1,
-            Interested = 2,
-            NotInterested = 3,
-            Have = 4,
-            Bitfield = 5,
-            Request = 6,
-            Piece = 7,
-            Cancel = 8,
-            Port = 9,
-        }
-
-        public bool[] piece_bitfield { get; set; }
+        Choke = 0,
+        Unchoke = 1,
+        Interested = 2,
+        NotInterested = 3,
+        Have = 4,
+        Bitfield = 5,
+        Request = 6,
+        Piece = 7,
+        Cancel = 8,
+    }
+    public class Peer
+    {
+        public bool[] bitfield { get; set; }
 
         public string ip { get; set; }
         public int port { get; set; }
+        public NetworkStream netstream { get; set; }
 
-        public Peer(String ipaddr, int port)
+
+        public Peer(string ip, int port)
         {
+            this.ip = ip;
             this.port = port;
-            this.ip = ipaddr;
         }
     }
 }

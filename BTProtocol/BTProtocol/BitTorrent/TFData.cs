@@ -15,12 +15,12 @@ namespace BTProtocol.BitTorrent
     }
 
     [Serializable()]
-    public struct TFData
+    public class TFData
     {
         public string torrent_name { get; }
         public string resource_path { get; }
 
-        public string info_hash { get; }
+        public byte[] info_hash { get; }
         public byte[] piece_hash { get; }
         public long piece_size { get; }
 
@@ -29,21 +29,21 @@ namespace BTProtocol.BitTorrent
         public uint bytes_downloaded;
         public UInt64 bytes_left;
 
-        public HashSet<(string, int)> peer_list { get; set; }
-        public HashSet<(string, int)> visited_peers { get; set; }
+        public int peer_list_indx;
+        public List<(string, int)> peer_list { get; set; }
 
         public Events _event;
         public byte compact; // 0 - False, 1 - True
 
-        public TFData(string torrent_name, string resource_path, string info_hash, byte[] piece_hash, long piece_size)
+        public TFData(string torrent_name, string resource_path, byte[] info_hash, byte[] piece_hash, long piece_size)
         {
             this.torrent_name = torrent_name;
             this.resource_path = resource_path;
             this.info_hash = info_hash;
             this.piece_hash = piece_hash;
             this.piece_size = piece_size;
-            this.peer_list = new HashSet<(string, int)>();
-            this.visited_peers = new HashSet<(string, int)>();
+            peer_list = new List<(string, int)>();
+            peer_list_indx = 0;
 
             piece_status = new int[piece_hash.Length / 20];
             bytes_uploaded = 0;
@@ -55,8 +55,8 @@ namespace BTProtocol.BitTorrent
 
         public void ResetStatus()
         {
+            peer_list_indx = 0;
             peer_list.Clear();
-            visited_peers.Clear();
             for (int i = 0; i < piece_status.Length; i++)
             {
                 if (piece_status[i] == 2)

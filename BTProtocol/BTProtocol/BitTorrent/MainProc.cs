@@ -23,8 +23,7 @@ namespace BTProtocol.BitTorrent
         const string serailized_path = resource_path + "TorrentData/";
         static Dictionary<string, TFData> torrent_file_dict = new Dictionary<string, TFData>();
 
-        public static Mutex main_mutex = new Mutex();
-        public static Semaphore thread_pool;
+        public static SemaphoreSlim thread_pool;
         public static Semaphore main_semaphore;
 
         private static void InitPeerid()
@@ -78,8 +77,7 @@ namespace BTProtocol.BitTorrent
                 }
                 else
                 {
-                    file_data = new TFData(torrent_name, file, torrent_file.GetInfoHash(), torrent_file.Pieces, torrent_file.PieceSize);
-
+                    file_data = new TFData(torrent_name, file, torrent_file.GetInfoHashBytes(), torrent_file.Pieces, torrent_file.PieceSize);
                     Console.WriteLine("Creating new TFData serialized object: " + torrent_name);
                     Stream SaveFileStream = File.Create(serailized_path + torrent_name);
                     BinaryFormatter serializer = new BinaryFormatter();
@@ -120,7 +118,7 @@ namespace BTProtocol.BitTorrent
 
             // Create thread-pool for downloading and uploading (29 down, 1 up)
             int threads = 1;
-            thread_pool = new Semaphore(threads, threads);
+            thread_pool = new SemaphoreSlim(threads, threads);
             main_semaphore = new Semaphore(1,1);
 
             // For each torrent, spin up threads to download pieces (blocks when thread_pool is exhausted)
@@ -130,11 +128,11 @@ namespace BTProtocol.BitTorrent
             while (download_queue.Count > 0)
             {
                 main_semaphore.WaitOne();
-                Console.WriteLine("Mutex Acquired");
-                thread_pool.WaitOne();
+                thread_pool.Wait();
                 DownloadingTask task = new DownloadingTask(download_queue.Peek());
                 thread_pool.Release();
-                Task t = new Task(() => task.StartTask());
+                System.Threading.Tasks.Task t = new System.Threading.Tasks.Task(() => task.StartTask());
+                Console.WriteLine("Starting new Task");
                 t.Start();
             }
         }
