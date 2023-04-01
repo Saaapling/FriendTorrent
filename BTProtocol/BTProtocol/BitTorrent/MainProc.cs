@@ -10,60 +10,43 @@ using BencodeNET.Objects;
 using BencodeNET.Parsing;
 using BencodeNET.Torrents;
 using System.Threading;
+using System.Collections;
+using System.Threading.Tasks;
 
 namespace BTProtocol.BitTorrent
 {
-
-    enum Events : UInt16
-    {
-        started = 0,
-        paused  = 1,
-        stopped = 2,
-    }
-
-    [Serializable()]
-    struct TFData
-    {
-        public string torrent_name { get; }
-        public string resource_path { get; }
-
-        public byte[] piece_hash { get; }
-        public long piece_size { get; }
-
-        public bool[] pieces_downloaded;
-        public uint bytes_uploaded;
-        public uint bytes_downloaded;
-        public UInt64 bytes_left;
-
-
-        public Events _event;
-        public bool compact;
-
-        public TFData(string torrent_name, string resource_path, byte[] piece_hash, long piece_size)
-        {
-            this.torrent_name = torrent_name;
-            this.resource_path = resource_path;
-            this.piece_hash = piece_hash;
-            this.piece_size = piece_size;
-
-            pieces_downloaded = new bool[piece_hash.Length];
-            bytes_uploaded = 0;
-            bytes_downloaded = 0;
-            bytes_left = Convert.ToUInt64(piece_size * piece_hash.Length);
-            _event = Events.started;
-            compact = true;
-        }
-    }
-    
     class MainProc
     {
+        public static string peerid { get; set; }
+        //public Queue<TFData> download_queue { get; private set; }
         const string resource_path = @"../../Resources/";
-        const string serailized_path = resource_path + "TorrentData/";
+        const string serialized_path = resource_path + "TorrentData/";
         static Dictionary<string, TFData> torrent_file_dict = new Dictionary<string, TFData>();
 
-        static BencodeParser parser = new BencodeParser();
+        public static Semaphore main_semaphore;
 
-        private static Dictionary<string, Torrent> parse_torrent_files(string resource_path)
+        private static void InitPeerid()
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("ds_bit");
+            sb.Append(Environment.MachineName.ToString());
+            if (sb.Length >= 20)
+            {
+                peerid = sb.ToString().Substring(0, 20);
+            }
+            else
+            {
+                int rest = 20 - sb.Length;
+                Random random = new Random();
+                for (int i = 0; i < rest; i++)
+                {
+                    sb.Append(random.Next() % 10);
+                }
+                peerid = sb.ToString();
+            }
+        }
+
+        private static Dictionary<string, Torrent> ParseTorrentFiles(string resource_path)
         {
             /*
              Iterates through the torrent files in / resources, creating new serialized
@@ -72,30 +55,30 @@ namespace BTProtocol.BitTorrent
             */
 
             string[] torrent_files = Directory.GetFiles(resource_path);
-            List<string> torrent_data_files = new List<string>(Directory.GetFiles(serailized_path));
+            List<string> torrent_data_files = new List<string>(Directory.GetFiles(serialized_path));
             Dictionary<string, Torrent> torrents = new Dictionary<string, Torrent>();
             foreach (string file in torrent_files)
             {
                 string torrent_name = file.Split('/').Last();
                 torrent_name = torrent_name.Substring(0, torrent_name.Length - 8);
-                string torrent_filedata_path = serailized_path + torrent_name;
-                Torrent torrent_file = parser.Parse<Torrent>(file);
+                string torrent_filedata_path = serialized_path + torrent_name;
+                Torrent torrent_file = Utils.parser.Parse<Torrent>(file);
                 TFData file_data;
                 if (File.Exists(torrent_filedata_path))
                 {
                     Stream openFileStream = File.OpenRead(torrent_filedata_path);
                     BinaryFormatter deserializer = new BinaryFormatter();
                     file_data = (TFData)deserializer.Deserialize(openFileStream);
+                    file_data.ResetStatus();
 
                     Console.WriteLine("Torrent found: " + torrent_name);
                     torrent_data_files.Remove(torrent_filedata_path);
                 }
                 else
                 {
-                    file_data = new TFData(torrent_name, file, torrent_file.Pieces, torrent_file.PieceSize);
-
+                    file_data = new TFData(torrent_name, file, torrent_file.GetInfoHashBytes(), torrent_file.Pieces, torrent_file.PieceSize);
                     Console.WriteLine("Creating new TFData serialized object: " + torrent_name);
-                    Stream SaveFileStream = File.Create(serailized_path + torrent_name);
+                    Stream SaveFileStream = File.Create(serialized_path + torrent_name);
                     BinaryFormatter serializer = new BinaryFormatter();
                     serializer.Serialize(SaveFileStream, file_data);
                     SaveFileStream.Close();
@@ -115,37 +98,42 @@ namespace BTProtocol.BitTorrent
             return torrents;
         }
 
-
         static void Main(string[] args)
         {
-            Tracker.init_peerid();
-            Dictionary<string, Torrent> torrents = parse_torrent_files(resource_path);
+            InitPeerid();
+            Dictionary<string, Torrent> torrents = ParseTorrentFiles(resource_path);
 
-            // For each torrent file found, create and contact its tacker, and set up
+            // For each torrent file found, create and contact its tracker, and set up
             // Timers to reconnect with the tracker after a specified amount of time has passed
             foreach (KeyValuePair<string, Torrent> torrent in torrents)
             {
                 Tracker tracker = new Tracker(torrent.Value);
                 BDictionary dictionary = torrent.Value.ToBDictionary();
                 TFData torrent_data = torrent_file_dict[torrent.Key];
-                byte[] data = tracker.SendRecvToTracker(torrent_data, dictionary["announce"].ToString());
-                BDictionary tracker_dict = parser.Parse<BDictionary>(data);
+                int wait_time = tracker.SendRecvToTracker(torrent_data, dictionary["announce"].ToString());
 
-                Console.WriteLine(tracker_dict["interval"].ToString());
-                int wait_time = Int32.Parse(tracker_dict["interval"].ToString());
-                Console.WriteLine(wait_time);
-                var stateTimer = new Timer(tracker.updateTracker, torrent_data, wait_time * 1000, wait_time * 1000);
-
-                //var stateTimer = new Timer(tracker.updateTracker, torrent_data, 3 * 1000, 3 * 1000);
+                var state_timer = new Timer(tracker.UpdateTracker, torrent_data, wait_time * 1000, wait_time * 1000);
             }
 
-            //There exists the question of how to handle the main thread: currently it exits after completing the above task, but in the
-            //final form, the main thread presumable is connected to a window/display and would not close until the user exits the window
-            //Thus, in the current state, this long sleep represents the main thraed having a window open
+            // Create thread-pool for downloading and uploading (29 down, 1 up)
+            int threads = 1;
+            TorrentTask.thread_pool = new SemaphoreSlim(threads, threads);
+            main_semaphore = new Semaphore(1,1);
 
-            //Sleeps for an hour
-            Thread.Sleep(3600000);
+            // For each torrent, spin up threads to download pieces (blocks when thread_pool is exhausted)
+            // Only downloads from one torrent at a time, once a torrent is finished downloading, start on the next torrent
+            // Todo: Implement logic to switch from one torrent to the next (and to mark finished torrents as complete)
+            Queue<TFData> download_queue = new Queue<TFData>(torrent_file_dict.Values);
+            while (download_queue.Count > 0)
+            {
+                main_semaphore.WaitOne();
+                TorrentTask.thread_pool.Wait();
+                DownloadingTask task = new DownloadingTask(download_queue.Peek());
+                TorrentTask.thread_pool.Release();
+                System.Threading.Tasks.Task t = new System.Threading.Tasks.Task(() => task.StartTask());
+                Console.WriteLine("Starting new Task");
+                t.Start();
+            }
         }
-
     }
 }

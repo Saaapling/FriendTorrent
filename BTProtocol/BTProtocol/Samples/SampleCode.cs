@@ -1,0 +1,48 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace BTProtocol.Samples
+{
+    internal class SampleCode
+    {
+        static void Print(string bytes)
+        {
+            foreach (byte x in bytes)
+            {
+                Console.Write(@"{0:x2}", x);
+            }
+        }
+
+        static void UtfReadBytest()
+        {
+            byte[] bytes = { 0x13, 0x42, 0x69, 0x74, 0x54, 0x6f, 0x72, 0x72, 0x65, 0x6e, 0x74, 0x20, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x05, 0xe6, 0x2c, 0x41, 0x69, 0x54, 0xc5, 0x78, 0x46, 0x9f, 0xc7, 0x63, 0x69, 0x0f, 0x95, 0xad, 0xe4, 0x90, 0xd9, 0x91, 0xd3, 0x2d, 0x54, 0x52, 0x32, 0x39, 0x34, 0x30, 0x2d, 0x65, 0x63, 0x30, 0x64, 0x69, 0x77, 0x74, 0x77, 0x64, 0x69, 0x64, 0x6d };
+
+            if (bytes[0] != 19)
+            {
+                Console.WriteLine("Invalid handshake, first byte must equal 19");
+            }
+
+            if (Encoding.UTF8.GetString(bytes.Skip(1).Take(19).ToArray()) != "BitTorrent protocol")
+            {
+                Console.WriteLine("Invalid handshake, protocol must equal \"BitTorrent protocol\"");
+            }
+
+            byte[] peer_hash = bytes.Skip(28).Take(20).ToArray();
+            byte[] info_hash =
+            {
+                0xe6, 0x2c, 0x41, 0x69, 0x54, 0xc5, 0x78, 0x46, 0x9f, 0xc7, 0x63, 0x69, 0x0f, 0x95, 0xad, 0xe4, 0x90, 0xd9, 0x91, 0xd3
+            };
+
+            if (!peer_hash.SequenceEqual(info_hash))
+            {
+                Console.WriteLine("Invalid handshake, peer returned a different info_hash");
+            }
+
+            Console.WriteLine(":)");
+        }
+
+    }
+}
