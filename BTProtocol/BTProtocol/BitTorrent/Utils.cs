@@ -35,6 +35,20 @@ namespace BTProtocol.BitTorrent
                              .ToArray();
         }
 
+        public static byte GetBitfieldByte(int[] peice_status, int pointer)
+        {
+            int value = 0;
+            for (int i = 0; i < 8 && pointer + i < peice_status.Length; i++)
+            {
+                if (peice_status[pointer + i] == 1)
+                {
+                    value += 1 << (7 - i);
+                }
+            }
+
+            return (byte)value;
+        }
+
         public static void PrintTorrentDict(Torrent tf)
         {
             BDictionary dictionary = tf.ToBDictionary();

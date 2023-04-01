@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using static BTProtocol.BitTorrent.MessageType;
@@ -13,19 +14,11 @@ namespace BTProtocol.BitTorrent
 {
     public class TorrentTask
     {
+        public static SemaphoreSlim thread_pool;
 
-        private static byte GetBitfieldByte(int[] peice_status, int pointer)
+        protected private void ExitThread()
         {
-            int value = 0;
-            for (int i = 0; i < 8 && pointer + i < peice_status.Length; i++)
-            {
-                if (peice_status[pointer + i] == 1)
-                {
-                    value += 1<<(7-i);
-                }
-            }
-
-            return (byte)value;
+            thread_pool.Release();
         }
 
         public void SendBitField(TFData torrent_data, NetworkStream netstream)
@@ -39,7 +32,7 @@ namespace BTProtocol.BitTorrent
             byteStream.WriteByte((byte) Bitfield);
             for (int i = 0; i < size - 1; i++)
             {
-                byteStream.WriteByte(GetBitfieldByte(torrent_data.piece_status, i));
+                byteStream.WriteByte(Utils.GetBitfieldByte(torrent_data.piece_status, i));
             }
             netstream.Write(byteStream.ToArray(), 0, size+4);
         }

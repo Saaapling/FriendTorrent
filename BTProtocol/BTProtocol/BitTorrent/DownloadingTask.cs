@@ -11,7 +11,7 @@ using static BTProtocol.BitTorrent.MessageType;
 
 namespace BTProtocol.BitTorrent
 {
-    public class DownloadingTask : TorrentTask
+    sealed internal class DownloadingTask : TorrentTask
     {
 
         TFData torrent_data;
@@ -21,12 +21,6 @@ namespace BTProtocol.BitTorrent
         public DownloadingTask(TFData tfdata)
         {
             torrent_data = tfdata;
-            client = new TcpClient();
-        }
-
-        public void ExitThread()
-        {
-            MainProc.thread_pool.Release();
         }
 
         public void StartTask()
@@ -38,7 +32,8 @@ namespace BTProtocol.BitTorrent
              *      - Connect to the peer and start downloading, or exit the Task if no peers are avaiable
              */
             // Call WaitOne to decrement the count of available threads.
-            MainProc.thread_pool.Wait();
+            
+            thread_pool.Wait();
             // Release the lock on main so it can continue execution.
             MainProc.main_semaphore.Release();
 
@@ -46,8 +41,7 @@ namespace BTProtocol.BitTorrent
             while (!torrent_data.CheckDownloadStatus())
             {
                 (String, int) peer_addr;
-                client = new TcpClient();
-                while (!client.Connected)
+                while (client == null || !client.Connected)
                 {
                     peer = FindAvailablePeer();
                     if (peer != null)
@@ -75,7 +69,7 @@ namespace BTProtocol.BitTorrent
             ExitThread();
         }
 
-        public Peer FindAvailablePeer()
+        private Peer FindAvailablePeer()
         {
             // Find an unvisited peer to connect to
             int idx = Interlocked.Increment(ref torrent_data.peer_list_indx) - 1;
@@ -87,7 +81,7 @@ namespace BTProtocol.BitTorrent
             return null;
         }
 
-        public void InitiateConnection()
+        private void InitiateConnection()
         {
             //Console.WriteLine("Initiating Connection: " + peer_addr.Item1 + ":" +  peer_addr.Item2);
             string ipaddr = peer.ip;
@@ -102,7 +96,7 @@ namespace BTProtocol.BitTorrent
             }
         }
 
-        public void ReceivePacket()
+        private void ReceivePacket()
         {
             Console.WriteLine("Start Recieving Packets");
             /*

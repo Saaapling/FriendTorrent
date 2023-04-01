@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace BTProtocol.BitTorrent
 {
-    public class SeedingTask
+    sealed internal class SeedingTask
     {
         public SeedingTask()
         {
