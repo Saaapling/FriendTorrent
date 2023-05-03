@@ -102,8 +102,6 @@ namespace BTProtocol.BitTorrent
         private void InitiateConnection()
         {
             //Console.WriteLine("Initiating Connection: " + peer_addr.Item1 + ":" +  peer_addr.Item2);
-            //string ipaddr = "173.67.0.40";
-            //int port = 6889; //peer.port;
             string ipaddr = peer.ip;
             int port = peer.port;
 
