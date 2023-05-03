@@ -22,6 +22,9 @@ namespace BTProtocol.BitTorrent
         const string resource_path = @"../../Resources/";
         const string serialized_path = resource_path + "TorrentData/";
         static Dictionary<string, TFData> torrent_file_dict = new Dictionary<string, TFData>();
+        static Dictionary<string, FileManager> file_managers_dict = new Dictionary<string, FileManager>();
+        static Dictionary<string, Semaphore> semaphore_dict = new Dictionary<string, Semaphore>();
+
 
         public static Semaphore main_semaphore;
 
@@ -69,21 +72,24 @@ namespace BTProtocol.BitTorrent
                     Stream openFileStream = File.OpenRead(torrent_filedata_path);
                     BinaryFormatter deserializer = new BinaryFormatter();
                     file_data = (TFData)deserializer.Deserialize(openFileStream);
-                    file_data.ResetStatus();
+                    file_data.ResetStatus(torrent_file);
 
                     Console.WriteLine("Torrent found: " + torrent_name);
                     torrent_data_files.Remove(torrent_filedata_path);
                 }
                 else
                 {
-                    file_data = new TFData(torrent_name, file, torrent_file.GetInfoHashBytes(), torrent_file.Pieces, torrent_file.PieceSize);
+                    //file_data = new TFData(torrent_name, file, torrent_file.GetInfoHashBytes(), torrent_file.Pieces, torrent_file.PieceSize);
+                    file_data = new TFData(torrent_file, torrent_name);
                     Console.WriteLine("Creating new TFData serialized object: " + torrent_name);
                     Stream SaveFileStream = File.Create(serialized_path + torrent_name);
                     BinaryFormatter serializer = new BinaryFormatter();
                     serializer.Serialize(SaveFileStream, file_data);
                     SaveFileStream.Close();
                 }
+                file_managers_dict.Add(torrent_name, new FileManager(torrent_file));
                 torrent_file_dict.Add(torrent_name, file_data);
+                semaphore_dict.Add(torrent_name, new Semaphore(1, 1));
                 torrents.Add(torrent_name, torrent_file);
             }
 
@@ -123,14 +129,14 @@ namespace BTProtocol.BitTorrent
             // For each torrent, spin up threads to download pieces (blocks when thread_pool is exhausted)
             // Only downloads from one torrent at a time, once a torrent is finished downloading, start on the next torrent
             // Todo: Implement logic to switch from one torrent to the next (and to mark finished torrents as complete)
-            Queue<TFData> download_queue = new Queue<TFData>(torrent_file_dict.Values);
+            Queue<string> download_queue = new Queue<string>(torrent_file_dict.Keys);
             while (download_queue.Count > 0)
             {
                 main_semaphore.WaitOne();
                 TorrentTask.thread_pool.Wait();
-                DownloadingTask task = new DownloadingTask(download_queue.Peek());
+                DownloadingTask task = new DownloadingTask(torrent_file_dict[download_queue.Peek()], file_managers_dict[download_queue.Peek()], semaphore_dict[download_queue.Peek()]);
                 TorrentTask.thread_pool.Release();
-                System.Threading.Tasks.Task t = new System.Threading.Tasks.Task(() => task.StartTask());
+                Task t = new Task(() => task.StartTask());
                 Console.WriteLine("Starting new Task");
                 t.Start();
             }

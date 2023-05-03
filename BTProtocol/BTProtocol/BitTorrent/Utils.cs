@@ -2,12 +2,10 @@
 using BencodeNET.Parsing;
 using BencodeNET.Torrents;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace BTProtocol.BitTorrent
 {
@@ -15,6 +13,7 @@ namespace BTProtocol.BitTorrent
     {
 
         public static BencodeParser parser = new BencodeParser();
+        public const int BLOCK_SIZE = 16384; //2^14
 
         public static string UrlSafeStringInfohash(byte[] Infohash)
         {
@@ -33,6 +32,24 @@ namespace BTProtocol.BitTorrent
                              .Where(x => x % 2 == 0)
                              .Select(x => Convert.ToByte(hex.Substring(x, 2), 16))
                              .ToArray();
+        }
+
+        public static int ParseInt(byte[] byte_buffer, int index=0)
+        {
+            byte[] int_bytes = new byte[4];
+            Array.Copy(byte_buffer, index, int_bytes, 0, 4);
+            if (BitConverter.IsLittleEndian)
+                Array.Reverse(int_bytes);
+            return BitConverter.ToInt32(int_bytes, 0);
+        }
+
+        public static byte[] IntegerToByteArray(int x)
+        {
+            byte[] size_bytes = BitConverter.GetBytes(x);
+            if (BitConverter.IsLittleEndian)
+                Array.Reverse(size_bytes);
+
+            return size_bytes;
         }
 
         public static byte GetBitfieldByte(int[] peice_status, int pointer)

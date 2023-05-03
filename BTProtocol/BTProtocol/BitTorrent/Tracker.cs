@@ -57,7 +57,7 @@ namespace BTProtocol.BitTorrent
             sb.Append("&port=").Append(6881);
             sb.Append("&uploaded=").Append(tfdata.bytes_uploaded);
             sb.Append("&downloaded=").Append(tfdata.bytes_downloaded);
-            sb.Append("&left=").Append(tfdata.bytes_left);
+            sb.Append("&left=").Append(tfdata.torrent_size - tfdata.bytes_downloaded);
             sb.Append("&event=").Append(EventToString(tfdata._event));
             sb.Append("&compact=").Append(tfdata.compact);
 

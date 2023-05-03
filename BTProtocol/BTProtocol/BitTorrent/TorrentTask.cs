@@ -25,10 +25,7 @@ namespace BTProtocol.BitTorrent
         {
             MemoryStream byteStream = new MemoryStream();
             int size = (int) Math.Ceiling(torrent_data.piece_status.Length / 8d) + 1;
-            byte[] size_bytes = BitConverter.GetBytes(size);
-            if (BitConverter.IsLittleEndian)
-                Array.Reverse(size_bytes);
-            byteStream.Write(size_bytes, 0, 4);
+            byteStream.Write(Utils.IntegerToByteArray(size), 0, 4);
             byteStream.WriteByte((byte) Bitfield);
             for (int i = 0; i < size - 1; i++)
             {
@@ -37,9 +34,23 @@ namespace BTProtocol.BitTorrent
             netstream.Write(byteStream.ToArray(), 0, size+4);
         }
 
-        public void ReceiveBitField(TFData torrent_data, NetworkStream netstream)
+        public void SetPeerBitField(byte[] byte_buffer,ref Peer peer)
         {
-            Console.WriteLine("Todo: Receive bitfield");
+            Array.Reverse(byte_buffer);
+            BitArray bits = new BitArray(byte_buffer);
+            int bitfield_length = peer.bitfield.Length;
+            if (bitfield_length % 8 != 0)
+            {
+                bitfield_length += 8 - (bitfield_length % 8);
+            }
+
+            for (int i = 0; i < bitfield_length; i++)
+            {
+                if (bits.Get(bitfield_length - i - 1))
+                {
+                    peer.bitfield[i] = true;
+                }
+            }
         }
 
         public void SendHandshake(TFData torrent_data, NetworkStream netstream)
