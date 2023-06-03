@@ -5,15 +5,17 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 
 namespace BTProtocol.BitTorrent
 {
-    internal class Utils
+    internal static class Utils
     {
 
         public static BencodeParser parser = new BencodeParser();
         public const int BLOCK_SIZE = 16384; //2^14
+        static BinaryFormatter serializer = new BinaryFormatter();
 
         public static string UrlSafeStringInfohash(byte[] Infohash)
         {
@@ -26,7 +28,7 @@ namespace BTProtocol.BitTorrent
             writer.Write(data);
         }
 
-        public static byte[] StringToByteArray(string hex)
+        public static byte[] ReadHexAsByteArray(string hex)
         {
             return Enumerable.Range(0, hex.Length)
                              .Where(x => x % 2 == 0)
@@ -43,7 +45,34 @@ namespace BTProtocol.BitTorrent
             return BitConverter.ToInt32(int_bytes, 0);
         }
 
+        public static Int64 ParseInt64(byte[] byte_buffer, int index = 0)
+        {
+            byte[] int_bytes = new byte[8];
+            Array.Copy(byte_buffer, index, int_bytes, 0, 8);
+            if (BitConverter.IsLittleEndian)
+                Array.Reverse(int_bytes);
+            return BitConverter.ToInt64(int_bytes, 0);
+        }
+
         public static byte[] IntegerToByteArray(int x)
+        {
+            byte[] size_bytes = BitConverter.GetBytes(x);
+            if (BitConverter.IsLittleEndian)
+                Array.Reverse(size_bytes);
+
+            return size_bytes;
+        }
+
+        public static byte[] Int16ToByteArray(Int16 x)
+        {
+            byte[] size_bytes = BitConverter.GetBytes(x);
+            if (BitConverter.IsLittleEndian)
+                Array.Reverse(size_bytes);
+
+            return size_bytes;
+
+        }
+        public static byte[] Int64ToByteArray(Int64 x)
         {
             byte[] size_bytes = BitConverter.GetBytes(x);
             if (BitConverter.IsLittleEndian)
@@ -77,6 +106,28 @@ namespace BTProtocol.BitTorrent
             //Console.WriteLine(string.Join("\n", ((BDictionary) dictionary["info"]).Select(m => $"{m.Key}={m.Value}")));
 
             Console.ReadLine();
+        }
+
+        public static void SerializeTFData(TFData file_data)
+        {
+            Stream SaveFileStream = File.Create(MainProc.serialized_path + file_data.torrent_name);
+            serializer.Serialize(SaveFileStream, file_data);
+            SaveFileStream.Close();
+        }
+
+        public static TFData DeserializeTFData(string file_path)
+        {
+            Stream openFileStream = File.OpenRead(file_path);
+            TFData file_data = (TFData)serializer.Deserialize(openFileStream);
+            file_data.ResetStatus();
+            return file_data;
+        }
+
+        public static T[] SubArray<T>(this T[] data, int index, int length)
+        {
+            T[] result = new T[length];
+            Array.Copy(data, index, result, 0, length);
+            return result;
         }
     }
 }

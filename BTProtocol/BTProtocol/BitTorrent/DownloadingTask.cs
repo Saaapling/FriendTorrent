@@ -26,10 +26,9 @@ namespace BTProtocol.BitTorrent
         {
             public int index;
             public int last_block_index;
-            public bool[] block_status;
             public int final_block_size;
             public byte[] piece_data;
-
+            public int bytes_downloaded;
         }
         PieceData curr_piece;
 
@@ -116,7 +115,7 @@ namespace BTProtocol.BitTorrent
 
         private void ReceivePacket()
         {
-            Console.WriteLine("Start Recieving Packets");
+            //Console.WriteLine("Start Recieving Packets");
             /*
              * Continuously read in new packets from the peer.
              * The proess of reading in packets is as follows:
@@ -136,18 +135,18 @@ namespace BTProtocol.BitTorrent
 
                 if (packet_size > 0)
                 {
-                    Console.WriteLine("Packet Size: " + packet_size);
+                    //Console.WriteLine("Packet Size: " + packet_size);
                     byte_buffer = new byte[packet_size];
                     int bytes_read = 0;
                     while (bytes_read < packet_size)
                     {
                         bytes_read += peer.netstream.Read(byte_buffer, bytes_read, packet_size - bytes_read);
                     }
-                    Console.WriteLine("Bytes Read: " + bytes_read);
+                    //Console.WriteLine("Bytes Read: " + bytes_read);
 
                     MessageType packet_type = (MessageType)byte_buffer[0];
                     // Add debug function call #define DEBUGF(x)
-                    Console.WriteLine("Packet Type: " + packet_type.ToString());
+                    //Console.WriteLine("Packet Type: " + packet_type.ToString());
                     switch (packet_type)
                     {
                         case Choke:
@@ -263,7 +262,6 @@ namespace BTProtocol.BitTorrent
 
         private void SendPieceRequest()
         {
-            Console.WriteLine("I got here");
             int next_piece = peer.GetNextPiece(torrent_data);
             tf_lock.WaitOne();
             while (next_piece != -1 && !torrent_data.SetPieceStatus(next_piece, 2))
@@ -277,23 +275,30 @@ namespace BTProtocol.BitTorrent
                 curr_piece = new PieceData();
                 curr_piece.index = next_piece;
                 long piece_size;
-                if (next_piece == file_manager.piece_filemap.Length)
+                if (next_piece == file_manager.piece_filemap.Length - 1)
                 {
                     piece_size = torrent_data.torrent_size % file_manager.piece_size;
+                    if (piece_size == 0)
+                    {
+                        piece_size = file_manager.piece_size;
+                    }
                 }
                 else
                 {
                     piece_size = file_manager.piece_size;
                 }
                 curr_piece.last_block_index = (int)Math.Ceiling(piece_size / (double)Utils.BLOCK_SIZE) - 1;
-                curr_piece.block_status = new bool[curr_piece.last_block_index + 1];
                 curr_piece.final_block_size = (int) piece_size % Utils.BLOCK_SIZE;
                 if (curr_piece.final_block_size == 0)
                 {
                     curr_piece.final_block_size = Utils.BLOCK_SIZE;
                 }
                 curr_piece.piece_data = new byte[piece_size];
-                SendBlockRequest(0);
+                curr_piece.bytes_downloaded = 0;
+                for (int block = 0; block < curr_piece.last_block_index + 1; block++)
+                {
+                    SendBlockRequest(block);
+                }
             }
             else
             {
@@ -304,7 +309,7 @@ namespace BTProtocol.BitTorrent
 
         private void SendBlockRequest(int block_index)
         {
-            Console.WriteLine("Requesting (Piece, Block): (" + curr_piece.index + ", " +  block_index + ")");
+            //Console.WriteLine("Requesting (Piece, Block): (" + curr_piece.index + ", " +  block_index + ")");
             MemoryStream byteStream = new MemoryStream();
             byteStream.Write(Utils.IntegerToByteArray(13), 0, 4); // Size
             byteStream.WriteByte(6); // Packet Type
@@ -338,24 +343,38 @@ namespace BTProtocol.BitTorrent
             int block_idx = offset / Utils.BLOCK_SIZE;
             if (block_idx == curr_piece.last_block_index)
             {
-                // Once the full peice has been downloaded, verify that the data is correct through a hash comparison
-                // If the piece is incorrect, discard all data downloaded and choose a new piece to download
-                if (torrent_data.VerifyPiece(piece_idx, curr_piece.piece_data))
-                {
-                    tf_lock.WaitOne();
-                    bool status = torrent_data.SetPieceStatus(piece_idx, 1);
-                    tf_lock.Release();
-                    if (status)
-                    {
-                        file_manager.WritePiece(piece_idx, curr_piece.piece_data);
-                        // Todo notify others Cancel f they are downloading the same piece (useful in 'endgame')
-                    }
-                }
-                SendPieceRequest();
+                curr_piece.bytes_downloaded += curr_piece.final_block_size;
             }
             else
             {
-                SendBlockRequest(block_idx + 1);
+                curr_piece.bytes_downloaded += Utils.BLOCK_SIZE;
+            }
+
+
+            // Once the full piece has been downloaded, verify that the data is correct through a hash comparison
+            // If the piece is incorrect, discard all data downloaded and choose a new piece to download
+            if (curr_piece.bytes_downloaded == curr_piece.piece_data.Length)
+            {
+                if (torrent_data.VerifyPiece(piece_idx, curr_piece.piece_data))
+                {
+                    tf_lock.WaitOne();
+                    if (torrent_data.SetPieceStatus(piece_idx, 1))
+                    {
+                        Console.WriteLine("Piece Downloaded (" + torrent_data.torrent_name + "): " + piece_idx);
+                        file_manager.WritePiece(piece_idx, curr_piece.piece_data);
+                        torrent_data.bytes_downloaded += (uint)curr_piece.piece_data.Length;
+                        Utils.SerializeTFData(torrent_data);
+                        // Todo notify others Cancel to if they are downloading the same piece (useful in 'endgame')
+                    }
+                    tf_lock.Release();
+                }
+                else
+                {
+                    tf_lock.WaitOne();
+                    torrent_data.SetPieceStatus(piece_idx, 0);
+                    tf_lock.Release();
+                }
+                SendPieceRequest();
             }
         }
     }

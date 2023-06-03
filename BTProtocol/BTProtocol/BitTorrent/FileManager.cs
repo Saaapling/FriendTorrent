@@ -42,10 +42,12 @@ namespace BTProtocol
 
             int pieces = torrent.Pieces.Length / 20;
             piece_filemap = new List<TFile>[pieces];
+            string torrent_folder = path + torrent.DisplayName + "/";
+            Directory.CreateDirectory(torrent_folder);
             if (torrent.File != null)
             {
                 TFile file;
-                string torrent_path = path + torrent.File.FileName;
+                string torrent_path = torrent_folder + torrent.File.FileName;
                 FileStream fs = File.OpenWrite(torrent_path);
                 file_sizes = new long[1] { torrent.TotalSize };
                 for (int i = 0; i < pieces; i++)
@@ -63,7 +65,7 @@ namespace BTProtocol
                 total_offsets[0] = 0;
                 for (int i = 0; i < file_count; i++)
                 {
-                    FileStream fs = File.OpenWrite(path + torrent.Files[i].FileName);
+                    FileStream fs = File.OpenWrite(torrent_folder + torrent.Files[i].FileName);
                     filestreams[i] = fs;
                     total_offsets[i+1] = total_offsets[i] + torrent.Files[i].FileSize;
                     file_sizes[i] = torrent.Files[i].FileSize;

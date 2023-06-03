@@ -10,26 +10,34 @@
 	
 
 ### Todo:
-	 * UDP Tracking
-	 * Implement piece download
-	 * Implement peer seeding 
 	 * Handle all Message types in Downloading Peer
-	 * Handle Multifile lists in TFData for file size
-	 * Resume from where we left off torrenting instead of doing a fresh download
-	 * Add debug function call ie. #define DEBUGF(x) for logging
-	 * Fix how we add available peers to TFData (currently done in SendRecvToTracker)
+		* Implement last 2 message protocols (Request and Cancel)
+			* Send haves after finish downloading and respond
+	 * Move filemanager dictionary to its own separate file
+	 * Implement peer seeding
+
+	 * Nice to have: 
+		* Verify that files/pieces downloaded are correct through a hash comparison when starting the program
+			* Manual hash calculation + check serialized file
+		* Add in-progress torrents that have exhausted their peer list to a sepereate queue/list (await next tracker update)
+		* Add debug function call ie. #define DEBUGF(x) for logging
+
+	 * Wistful Thinking:
+		* uTP protocol
+		* We are currently unable to download 2 different torrents from the same peer/port combination
+			- One of the torrent tasks will not be able to download any pieces (possibly because the other task is consuming all of the incomining data)
 
 
 ### Logic/Ideas
 	* Create up to N threads for connections to peers. 
-		** 1 Thread will be used to upload peices to connected peers
+		** 1 Thread will be used to upload pieces to connected peers
 		** 1 Thread will be used to update all the trackers for the torrents we own
-		** Remaining Threads will download missing torrent peices
+		** Remaining Threads will download missing torrent pieces
 	* Task/Logic:
 		** Each thread will start by selecting a piece to download.
 		** It will go through the list of unconnected peers until it finds one who has the piece it is looking for
 		** It will then download that piece from the selected peer
-		** When selecting the next piece to download, the thread will prioritize peices that its current peer has available
+		** When selecting the next piece to download, the thread will prioritize pieces that its current peer has available
 
 
 #### Useful Links:
@@ -44,8 +52,13 @@
 
 ### Pseudo Documentation
 Order of piece and block downloads:
-	- Pieces downloads are random, each task is randomly assigned a piece to download from their connected peer (among the list of peices the peer owns)
+	- Pieces downloads are random, each task is randomly assigned a piece to download from their connected peer (among the list of pieces the peer owns)
 		- This is to avoid collision between different tasks trying to download the same piece, and to prevent slowdowns from downloading the torrent sequentially
 	- Blocks are downloaded sequentially for each piece (Potentially will change)
-		- Tasks will download each peice starting from the first block, and will request the next block only after recieving the block it request
+		- Tasks will download each piece starting from the first block, and will request the next block only after recieving the block it request
 		- Todo: UDP (Resends)
+
+Tracker Peculiarities:
+	- We do not implement a backoff for UDP trackers. Once we recieve an error from a tracker (timeout, incorrect response, etc) the tracker is dropped and we do not contact it again
+	- Proper behavior is to use a backoff of 15 * 2^n, where n starts at 1
+	- Trackers are run in a seperate thread

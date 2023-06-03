@@ -19,6 +19,7 @@ namespace BTProtocol.BitTorrent
         protected private void ExitThread()
         {
             thread_pool.Release();
+            Console.WriteLine("Exiting Task");
         }
 
         public void SendBitField(TFData torrent_data, NetworkStream netstream)

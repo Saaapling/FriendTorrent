@@ -59,12 +59,12 @@ namespace BTProtocol.BitTorrent
                 if (piece_status == 1)
                 {
                     high_size--;
-                    high_priority_pieces.RemoveAt(index);
+                    high_priority_pieces.Remove(index);
                     index = -1;
                 }else if (piece_status == 2)
                 {
                     high_size--;
-                    high_priority_pieces.RemoveAt(index);
+                    high_priority_pieces.Remove(index);
                     low_priority_pieces.Add(index);
                     index = -1;
                 }
@@ -79,7 +79,7 @@ namespace BTProtocol.BitTorrent
                 if (piece_status == 1)
                 {
                     low_size--;
-                    high_priority_pieces.RemoveAt(index);
+                    high_priority_pieces.Remove(index);
                     index = -1;
                 }
             }

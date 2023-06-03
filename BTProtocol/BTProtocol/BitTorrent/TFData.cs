@@ -13,9 +13,11 @@ namespace BTProtocol.BitTorrent
 
     public enum Events : UInt16
     {
-        started = 0,
-        paused = 1,
-        stopped = 2,
+        none = 0,
+        completed = 1,
+        started = 2,
+        stopped = 3,
+        paused = 4
     }
 
     [Serializable()]
@@ -33,11 +35,12 @@ namespace BTProtocol.BitTorrent
 
         public int peer_list_indx;
         public List<(string, int)> peer_list { get; set; }
+        public HashSet<string> peers { get; set; }
 
         public Events _event;
         public byte compact; // 0 - False, 1 - True
 
-        public TFData(Torrent torrent_data, String filename)
+        public TFData(Torrent torrent_data, string filename)
         {
             torrent_name = filename;
             info_hash = torrent_data.GetInfoHashBytes();
@@ -49,6 +52,7 @@ namespace BTProtocol.BitTorrent
                 Array.Copy(torrent_data.Pieces, i, piece_hash[idx], 0, 20);
             }
             peer_list = new List<(string, int)>();
+            peers = new HashSet<string>();
             peer_list_indx = 0;
             piece_status = new int[piece_hash.Length];
             bytes_uploaded = 0;
@@ -57,10 +61,11 @@ namespace BTProtocol.BitTorrent
             compact = 1;
         }
 
-        public void ResetStatus(Torrent torrent_data)
+        public void ResetStatus()
         {
             peer_list_indx = 0;
             peer_list.Clear();
+            peers.Clear();
             for (int i = 0; i < piece_status.Length; i++)
             {
                 if (piece_status[i] == 2)
@@ -74,7 +79,7 @@ namespace BTProtocol.BitTorrent
         {
             for (int i = 0; i < piece_status.Length; i++)
             {
-                if (piece_status[i] == 0)
+                if (piece_status[i] != 1)
                 {
                     return false;
                 }
