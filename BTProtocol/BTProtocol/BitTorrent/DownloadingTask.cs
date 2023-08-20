@@ -14,11 +14,6 @@ namespace BTProtocol.BitTorrent
 {
     sealed internal class DownloadingTask : TorrentTask
     {
-
-        TFData torrent_data;
-        Semaphore tf_lock;
-        FileManager file_manager;
-        Peer peer;
         TcpClient client;
         DateTime? last_interested = null;
         int countdown;
@@ -32,12 +27,21 @@ namespace BTProtocol.BitTorrent
         }
         PieceData curr_piece;
 
-        public DownloadingTask(TFData tfdata, FileManager file_manager, Semaphore tf_lock)
+        protected override private void ExitThread()
+        {
+            DownloadingThreadManager.thread_pool.Release();
+            Console.WriteLine("Exiting Task");
+            if (client.Connected)
+            {
+                torrent_data.connected_peers.Remove((peer.ip, peer.port));
+            }
+        }
+
+        public DownloadingTask(TFData tfdata, FileManager file_manager)
         {
             torrent_data = tfdata;
             this.file_manager = file_manager;
             this.file_manager.Initialize();
-            this.tf_lock = tf_lock;
         }
 
         public void StartTask()
@@ -48,20 +52,19 @@ namespace BTProtocol.BitTorrent
              *      - Find an available, unvisted peer to connect to
              *      - Connect to the peer and start downloading, or exit the Task if no peers are avaiable
              */
-            // Call WaitOne to decrement the count of available threads.
-
-            thread_pool.Wait();
+            // Call Wait to decrement the count of available threads.
+            DownloadingThreadManager.thread_pool.Wait();
             // Release the lock on main so it can continue execution.
-            MainProc.main_semaphore.Release();
+            DownloadingThreadManager.main_semaphore.Release();
 
             // Check the TFData to see if there are pieces that stll need to be downloaded. 
             while (!torrent_data.CheckDownloadStatus())
             {
                 while (client == null || !client.Connected)
                 {
-                    peer = FindAvailablePeer();
-                    if (peer != null)
-                        InitiateConnection();
+                    Tuple<string, int> peer_addr = FindAvailablePeer();
+                    if (peer_addr != null)
+                        InitiateConnection(peer_addr);
                     else
                     {
                         ExitThread();
@@ -71,10 +74,10 @@ namespace BTProtocol.BitTorrent
 
                 try
                 {
-                    SendHandshake(torrent_data, peer.netstream);
-                    ReceiveHandshake(torrent_data, peer.netstream);
-                    SendBitField(torrent_data, peer.netstream);
-                    ReceivePacket();
+                    SendHandshake();
+                    ReceiveHandshakeDownloading();
+                    SendBitField();
+                    ReceivePackets();
                 }
                 catch (Exception e)
                 {
@@ -86,36 +89,46 @@ namespace BTProtocol.BitTorrent
             ExitThread();
         }
 
-        private Peer FindAvailablePeer()
+        private Tuple<string, int> FindAvailablePeer()
         {
             // Find an unvisited peer to connect to
-            int idx = Interlocked.Increment(ref torrent_data.peer_list_indx) - 1;
-            if (idx < torrent_data.peer_list.Count)
+            int idx;
+            string ip;
+            int port;
+            do
             {
-                return new Peer(torrent_data.peer_list[idx].Item1, torrent_data.peer_list[idx].Item2, torrent_data.piece_status.Length);
-            }
+                idx = Interlocked.Increment(ref torrent_data.peer_list_indx) - 1;
+                if (idx >= torrent_data.peer_list.Count)
+                {
+                    return null;
+                }
+                ip = torrent_data.peer_list[idx].Item1;
+                port = torrent_data.peer_list[idx].Item2;
+            } while (torrent_data.connected_peers.Contains((ip, port)));
 
-            return null;
+            return new Tuple<string, int>(ip, port);
         }
 
-        private void InitiateConnection()
+        private void InitiateConnection(Tuple<string, int> address)
         {
-            //Console.WriteLine("Initiating Connection: " + peer_addr.Item1 + ":" +  peer_addr.Item2);
-            string ipaddr = peer.ip;
-            int port = peer.port;
+            string ipaddr = address.Item1;
+            int port = address.Item2;
+            //Console.WriteLine("Initiating Connection: " + ipaddr + ":" + port);
 
             client = new TcpClient();
             if (client.ConnectAsync(ipaddr, port).Wait(500))
             {
                 Console.WriteLine("Connection Successful: " + ipaddr + ":" + port);
-                peer.netstream = client.GetStream();
-                peer.netstream.ReadTimeout = 30000;
+                peer = new Peer(client, torrent_data.piece_status.Length, torrent_data.torrent_name);
+                peer.GetStream().ReadTimeout = 30000;
+
+                torrent_data.connected_peers.Add((address.Item1, address.Item2));
             }
         }
 
-        private void ReceivePacket()
+        private void ReceivePackets()
         {
-            //Console.WriteLine("Start Recieving Packets");
+            //Console.WriteLine("Start Receiving Packets");
             /*
              * Continuously read in new packets from the peer.
              * The proess of reading in packets is as follows:
@@ -130,7 +143,7 @@ namespace BTProtocol.BitTorrent
                 byte[] byte_buffer = new byte[4];
                 int packet_size;
                 //Console.WriteLine("Trying to read");
-                peer.netstream.Read(byte_buffer, 0, 4);
+                peer.GetStream().Read(byte_buffer, 0, 4);
                 packet_size = Utils.ParseInt(byte_buffer);
 
                 if (packet_size > 0)
@@ -140,12 +153,11 @@ namespace BTProtocol.BitTorrent
                     int bytes_read = 0;
                     while (bytes_read < packet_size)
                     {
-                        bytes_read += peer.netstream.Read(byte_buffer, bytes_read, packet_size - bytes_read);
+                        bytes_read += peer.GetStream().Read(byte_buffer, bytes_read, packet_size - bytes_read);
                     }
                     //Console.WriteLine("Bytes Read: " + bytes_read);
 
-                    MessageType packet_type = (MessageType)byte_buffer[0];
-                    // Add debug function call #define DEBUGF(x)
+                    MessageType packet_type = (MessageType) byte_buffer[0];
                     //Console.WriteLine("Packet Type: " + packet_type.ToString());
                     switch (packet_type)
                     {
@@ -158,6 +170,7 @@ namespace BTProtocol.BitTorrent
                             break;
                         case Interested:
                             peer.interested = true;
+                            SendBitMessageType(Unchoke);
                             break;
                         case NotInterested:
                             peer.interested = false;
@@ -169,22 +182,19 @@ namespace BTProtocol.BitTorrent
                             ReceiveBitField(byte_buffer);
                             break;
                         case Request:
+                            ReceiveRequest(byte_buffer);
                             break;
                         case Piece:
                             ReceivePiece(byte_buffer);
                             break;
                         case Cancel:
+                            // Not handled by current seeding implementation
                             break;
 
                         default:
                             throw new Exception("Unknown packet type");
                     }
                 }
-                else
-                {
-                    // Potential Todo: Send Keepalive?
-                }
-
                 if (!(last_interested is null) &&
                      (DateTime.Now.Subtract(last_interested ??= DateTime.Now).Seconds > countdown))
                 {
@@ -196,7 +206,7 @@ namespace BTProtocol.BitTorrent
 
         private void ReceiveBitField(byte[] byte_buffer)
         {
-            SetPeerBitField(byte_buffer, ref peer);
+            SetPeerBitField(byte_buffer);
 
             // Compare the bitfield
             for (int i = 0; i < torrent_data.piece_status.Length; i++)
@@ -224,7 +234,7 @@ namespace BTProtocol.BitTorrent
                 last_interested = null;
             }
 
-            SendInterested();
+            SendBitMessageType(Interested);
         }
 
         private void ReceiveHave(byte[] byte_buffer)
@@ -252,23 +262,15 @@ namespace BTProtocol.BitTorrent
             }
         }
 
-        private void SendInterested()
-        {
-            MemoryStream byteStream = new MemoryStream();
-            byteStream.Write(Utils.IntegerToByteArray(1), 0, 4);
-            byteStream.WriteByte(2);
-            peer.netstream.Write(byteStream.ToArray(), 0, (int) byteStream.Length);
-        }
-
         private void SendPieceRequest()
         {
             int next_piece = peer.GetNextPiece(torrent_data);
-            tf_lock.WaitOne();
+            file_manager.tf_lock.WaitOne();
             while (next_piece != -1 && !torrent_data.SetPieceStatus(next_piece, 2))
             {
                 next_piece = peer.GetNextPiece(torrent_data);
             }
-            tf_lock.Release();
+            file_manager.tf_lock.Release();
 
             if (next_piece != -1)
             {
@@ -321,7 +323,7 @@ namespace BTProtocol.BitTorrent
                 length = curr_piece.final_block_size;
             }
             byteStream.Write(Utils.IntegerToByteArray(length), 0, 4);
-            peer.netstream.Write(byteStream.ToArray(), 0, (int)byteStream.Length);
+            peer.GetStream().Write(byteStream.ToArray(), 0, (int)byteStream.Length);
         }
 
         private void ReceivePiece(byte[] byte_buffer)
@@ -357,7 +359,7 @@ namespace BTProtocol.BitTorrent
             {
                 if (torrent_data.VerifyPiece(piece_idx, curr_piece.piece_data))
                 {
-                    tf_lock.WaitOne();
+                    file_manager.tf_lock.WaitOne();
                     if (torrent_data.SetPieceStatus(piece_idx, 1))
                     {
                         Console.WriteLine("Piece Downloaded (" + torrent_data.torrent_name + "): " + piece_idx);
@@ -366,13 +368,13 @@ namespace BTProtocol.BitTorrent
                         Utils.SerializeTFData(torrent_data);
                         // Todo notify others Cancel to if they are downloading the same piece (useful in 'endgame')
                     }
-                    tf_lock.Release();
+                    file_manager.tf_lock.Release();
                 }
                 else
                 {
-                    tf_lock.WaitOne();
+                    file_manager.tf_lock.WaitOne();
                     torrent_data.SetPieceStatus(piece_idx, 0);
-                    tf_lock.Release();
+                    file_manager.tf_lock.Release();
                 }
                 SendPieceRequest();
             }

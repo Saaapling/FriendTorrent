@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Sockets;
 
 
@@ -18,31 +19,58 @@ namespace BTProtocol.BitTorrent
         Piece = 7,
         Cancel = 8,
     }
+
     public class Peer
     {
+        private TcpClient client;
+
         public bool[] bitfield { get; set; }
         public List<int> high_priority_pieces;
         public List<int> low_priority_pieces;
 
-        public string ip { get; set; }
-        public int port { get; set; }
-        public NetworkStream netstream { get; set; }
+        public string ip { get; private set; }
+        public int port { get; private set; }
 
         public bool interested { get; set; }
+        public bool handshake { get; set;}
 
-        public Peer(string ip, int port, int bitfield_size)
+        public string torrent_name { get; set; }
+
+        public Peer(TcpClient client, int bitfield_size, string torrent_name)
         {
-            this.ip = ip;
-            this.port = port;
+            this.client = client;
+            ip = ((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString();
+            port = ((IPEndPoint)client.Client.RemoteEndPoint).Port;
             bitfield = new bool[bitfield_size];
             interested = false;
+            handshake = false;
             high_priority_pieces = new List<int>();
             low_priority_pieces = new List<int>();
+            this.torrent_name = torrent_name;
+        }
+
+        public Peer(TcpClient client)
+        {
+            this.client = client;
+            ip = ((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString();
+            port = ((IPEndPoint)client.Client.RemoteEndPoint).Port;
+            interested = false;
+            handshake = false;
         }
 
         public bool CheckInterested()
         {
             return (high_priority_pieces.Count + low_priority_pieces.Count) > 0;
+        }
+
+        public bool Connected() 
+        {
+            return client.Client.Connected;
+        }
+
+        public NetworkStream GetStream() 
+        {
+            return client.GetStream();
         }
 
         public int GetNextPiece(TFData torrent_data)

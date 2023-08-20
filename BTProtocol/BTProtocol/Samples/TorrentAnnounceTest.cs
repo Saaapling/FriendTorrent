@@ -52,7 +52,7 @@ namespace BTProtocol
             sb.Append(dictionary["announce"].ToString());
             sb.Append("?info_hash=").Append(UrlSafeStringInfohash(torrent_file.GetInfoHashBytes()));
             sb.Append("&peer_id=").Append("ds_bit14943629834679");
-            sb.Append("&port=").Append(6881);
+            sb.Append("&port=").Append(6889);
             sb.Append("&uploaded=").Append(0);
             sb.Append("&downloaded=").Append(0);
             sb.Append("&left=").Append(torrent_file.TotalSize);

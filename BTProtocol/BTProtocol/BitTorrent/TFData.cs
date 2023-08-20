@@ -35,7 +35,7 @@ namespace BTProtocol.BitTorrent
 
         public int peer_list_indx;
         public List<(string, int)> peer_list { get; set; }
-        public HashSet<string> peers { get; set; }
+        public List<(string, int)> connected_peers { get; set; }
 
         public Events _event;
         public byte compact; // 0 - False, 1 - True
@@ -52,7 +52,7 @@ namespace BTProtocol.BitTorrent
                 Array.Copy(torrent_data.Pieces, i, piece_hash[idx], 0, 20);
             }
             peer_list = new List<(string, int)>();
-            peers = new HashSet<string>();
+            connected_peers = new List<(string, int)>();
             peer_list_indx = 0;
             piece_status = new int[piece_hash.Length];
             bytes_uploaded = 0;
@@ -65,7 +65,7 @@ namespace BTProtocol.BitTorrent
         {
             peer_list_indx = 0;
             peer_list.Clear();
-            peers.Clear();
+            connected_peers.Clear();
             for (int i = 0; i < piece_status.Length; i++)
             {
                 if (piece_status[i] == 2)
@@ -85,6 +85,18 @@ namespace BTProtocol.BitTorrent
                 }
             }
             return true;
+        }
+
+        public bool IsActive()
+        {
+            for (int i = 0; i < piece_status.Length; i++)
+            {
+                if (piece_status[i] == 1)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         // Todo: Serialize piece, can have a function in utils that does the serialization. Look at mainproc

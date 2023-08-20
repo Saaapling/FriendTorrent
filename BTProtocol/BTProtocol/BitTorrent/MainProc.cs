@@ -18,11 +18,9 @@ namespace BTProtocol.BitTorrent
         //public Queue<TFData> download_queue { get; private set; }
         public const string resource_path = @"../../Resources/";
         public const string serialized_path = resource_path + "TorrentData/";
-        static Dictionary<string, TFData> torrent_file_dict = new Dictionary<string, TFData>();
-        static Dictionary<string, FileManager> file_managers_dict = new Dictionary<string, FileManager>();
-        static Dictionary<string, Semaphore> semaphore_dict = new Dictionary<string, Semaphore>();
-
-        public static Semaphore main_semaphore;
+        public static Dictionary<string, TFData> torrent_file_dict = new Dictionary<string, TFData>();
+        public static Dictionary<string, TrackerManager> tracker_dict = new Dictionary<string, TrackerManager>();
+        public static Dictionary<string, FileManager> file_dict = new Dictionary<string, FileManager>();
 
         private static void InitPeerid()
         {
@@ -72,9 +70,8 @@ namespace BTProtocol.BitTorrent
                     file_data = new TFData(torrent_file, torrent_name);
                     Utils.SerializeTFData(file_data);
                 }
-                file_managers_dict.Add(torrent_name, new FileManager(torrent_file));
+                file_dict.Add(torrent_name, new FileManager(torrent_file));
                 torrent_file_dict.Add(torrent_name, file_data);
-                semaphore_dict.Add(torrent_name, new Semaphore(1, 1));
                 torrents.Add(torrent_name, torrent_file);
             }
 
@@ -91,8 +88,13 @@ namespace BTProtocol.BitTorrent
 
         static void Main(string[] args)
         {
-            InitPeerid();
+            InitPeerid(); 
             Dictionary<string, Torrent> torrents = ParseTorrentFiles(resource_path);
+
+            //SeedingThreadManager test = new SeedingThreadManager(25);
+            //Task test_task = new Task(() => test.StartSeeding());
+            //test_task.Start();
+            //Thread.Sleep(360000000);
 
             // For each torrent file found, create and contact its tracker, and set up
             // Timers to reconnect with the tracker after a specified amount of time has passed
@@ -100,43 +102,29 @@ namespace BTProtocol.BitTorrent
             {
                 TrackerManager tracker = new TrackerManager(torrent.Value, torrent_file_dict[torrent.Key]);
                 tracker.Initialize();
+                tracker_dict.Add(torrent.Key, tracker);
             }
 
-            Thread.Sleep(2000);
-            // Create thread-pool for downloading and uploading (29 down, 1 up)
-            int threads = 30;
-            TorrentTask.thread_pool = new SemaphoreSlim(threads, threads);
-            main_semaphore = new Semaphore(1, 1);
-            // For each torrent, spin up threads to download pieces (blocks when thread_pool is exhausted)
-            // Only downloads from one torrent at a time, once a torrent is finished downloading, start on the next torrent
-            // Todo: Implement logic to switch from one torrent to the next (and to mark finished torrents as complete)
-            Queue<string> download_queue = new Queue<string>(torrent_file_dict.Keys);
-            int tc = 1;
-            while (download_queue.Count > 0)
+            foreach (KeyValuePair<string, TFData> torrent in torrent_file_dict)
             {
-                main_semaphore.WaitOne();
-                TorrentTask.thread_pool.Wait();
-                TFData curr_tfdata = torrent_file_dict[download_queue.Peek()];
-                while (download_queue.Count > 0 && curr_tfdata.peer_list_indx >= curr_tfdata.peer_list.Count)
+                if (torrent.Value.IsActive())
                 {
-                    download_queue.Dequeue();
-                    if (download_queue.Count > 0)
-                    {
-                        curr_tfdata = torrent_file_dict[download_queue.Peek()];
-                    }
+                    file_dict[torrent.Key].Initialize();
                 }
-                if (download_queue.Count <= 0)
-                {
-                    Console.WriteLine("Leaving Main Proc");
-                    break;
-                }
-                DownloadingTask task = new DownloadingTask(torrent_file_dict[download_queue.Peek()], file_managers_dict[download_queue.Peek()], semaphore_dict[download_queue.Peek()]);
-                TorrentTask.thread_pool.Release();
-                Task t = new Task(() => task.StartTask());
-                Console.WriteLine("Starting new Task: " + tc);
-                tc++;
-                t.Start(); 
             }
+
+            // Forced sleep to allow trackers to respond n time before creating downloading tasks
+            Thread.Sleep(2000);
+
+            // Create thread-pools for downloading and uploading (25 down, 5 up)
+            SeedingThreadManager seeding_task = new SeedingThreadManager(5);
+            Task seeding_manager = new Task(() => seeding_task.StartSeeding());
+            seeding_manager.Start();
+
+            DownloadingThreadManager downloading_task = new DownloadingThreadManager(25);
+            Task download_manager = new Task(() => downloading_task.StartDownloads());
+            download_manager.Start();
+
             Thread.Sleep(3600000);
         }
     }

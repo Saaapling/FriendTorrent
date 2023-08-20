@@ -4,23 +4,22 @@
 ### Tasks:
 	* [Done] Serialization/Desirialization BEencode library 
 	* [Done] Parse peers list from tracker and connect to peers
-	* [In progress] Work on message chunks for peers (Sending and Receiving packets)
-	* [In progress] For multithreading instead of spinning a thread for each peer. Use async Tasks to download chunks, we can use logic where we download as many pieces available from a peer and then move on to others that more available chunks for us. 
+	* [Done] Work on message chunks for peers (Sending and Receiving packets)
+	* [Done] Handle all Message types in Downloading Peer
+	* [Done] Implement peer seeding
+	* [Done] For multithreading instead of spinning a thread for each peer. Use async Tasks to download chunks, we can use logic where we download as many pieces available from a peer and then move on to others that more available chunks for us. 
 	* [In progress] Code cleanup.
+	* [Todo] Command arguments, UI, reconfigure where resources are added/downloaded
 	
 
 ### Todo:
-	 * Handle all Message types in Downloading Peer
-		* Implement last 2 message protocols (Request and Cancel)
-			* Send haves after finish downloading and respond
-	 * Move filemanager dictionary to its own separate file
-	 * Implement peer seeding
 
 	 * Nice to have: 
 		* Verify that files/pieces downloaded are correct through a hash comparison when starting the program
 			* Manual hash calculation + check serialized file
-		* Add in-progress torrents that have exhausted their peer list to a sepereate queue/list (await next tracker update)
-		* Add debug function call ie. #define DEBUGF(x) for logging
+		* Add in-progress torrents that have exhausted their peer list to a seperate queue/list (await next tracker update)
+		* When a peer is no longer in the tracker remove them from the tracker list
+		* Integration with friend viewer co. ping Shio
 
 	 * Wistful Thinking:
 		* uTP protocol

@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 
@@ -16,6 +17,8 @@ namespace BTProtocol.BitTorrent
         public static BencodeParser parser = new BencodeParser();
         public const int BLOCK_SIZE = 16384; //2^14
         static BinaryFormatter serializer = new BinaryFormatter();
+        public static string LOCAL_IP_ADDRESS = GetLocalIPAddress();
+        public static string PUBLIC_IP_ADDRESS = GetPublicIPAddress();
 
         public static string UrlSafeStringInfohash(byte[] Infohash)
         {
@@ -128,6 +131,37 @@ namespace BTProtocol.BitTorrent
             T[] result = new T[length];
             Array.Copy(data, index, result, 0, length);
             return result;
+        }
+        
+        private static string GetLocalIPAddress()
+        {
+            var host = Dns.GetHostEntry(Dns.GetHostName());
+            foreach (var ip in host.AddressList)
+            {
+                if (ip.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    Console.WriteLine(ip.ToString());
+                    return ip.ToString();
+                }
+            }
+            throw new Exception("No network adapters with an IPv4 address in the system!");
+        }
+
+        private static string GetPublicIPAddress()
+        {
+            String address = "";
+            WebRequest request = WebRequest.Create("http://checkip.dyndns.org/");
+            using (WebResponse response = request.GetResponse())
+            using (StreamReader stream = new StreamReader(response.GetResponseStream()))
+            {
+                address = stream.ReadToEnd();
+            }
+
+            int first = address.IndexOf("Address: ") + 9;
+            int last = address.LastIndexOf("</body>");
+            address = address.Substring(first, last - first);
+
+            return address;
         }
     }
 }

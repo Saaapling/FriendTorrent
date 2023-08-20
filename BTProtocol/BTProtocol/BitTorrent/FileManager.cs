@@ -3,6 +3,7 @@ using System.IO;
 
 using System.Collections.Generic;
 using BencodeNET.Torrents;
+using System.Threading;
 
 namespace BTProtocol
 {
@@ -11,10 +12,12 @@ namespace BTProtocol
         // TFile represents the relationship between a piece and its corresponding files
         public struct TFile
         {
+            // Index of the files included the in the torrent, 0-indexed (used for file_sizes)
             public int index;
-            public FileStream filestream;
+            // Start offset to this TFile
             public long offset;
-
+            public FileStream filestream;
+            
             public TFile(int index, FileStream fs, long offset)
             {
                 this.index = index;
@@ -28,11 +31,13 @@ namespace BTProtocol
         public List<TFile>[] piece_filemap = null;
         Torrent torrent;
         public long piece_size { get; }
+        public Semaphore tf_lock { get; }
 
         public FileManager(Torrent torrent_data)
         {
             torrent = torrent_data;
             piece_size = torrent_data.PieceSize;
+            tf_lock = new Semaphore(1, 1);
         }
 
         public void Initialize()
@@ -48,7 +53,7 @@ namespace BTProtocol
             {
                 TFile file;
                 string torrent_path = torrent_folder + torrent.File.FileName;
-                FileStream fs = File.OpenWrite(torrent_path);
+                FileStream fs = File.Open(torrent_path, FileMode.OpenOrCreate, FileAccess.ReadWrite);
                 file_sizes = new long[1] { torrent.TotalSize };
                 for (int i = 0; i < pieces; i++)
                 {
@@ -65,7 +70,7 @@ namespace BTProtocol
                 total_offsets[0] = 0;
                 for (int i = 0; i < file_count; i++)
                 {
-                    FileStream fs = File.OpenWrite(torrent_folder + torrent.Files[i].FileName);
+                    FileStream fs = File.Open(torrent_folder + torrent.Files[i].FileName, FileMode.OpenOrCreate, FileAccess.ReadWrite);
                     filestreams[i] = fs;
                     total_offsets[i+1] = total_offsets[i] + torrent.Files[i].FileSize;
                     file_sizes[i] = torrent.Files[i].FileSize;
@@ -95,9 +100,9 @@ namespace BTProtocol
 
         public void WritePiece(int piece_idx, byte[] data)
         {
-            List<TFile> curr_files = piece_filemap[piece_idx];
+            List<TFile> files = piece_filemap[piece_idx];
             int data_offset = 0;
-            foreach (TFile curr_file in curr_files)
+            foreach (TFile curr_file in files)
             {
                 FileStream fs = curr_file.filestream;
                 long file_offset = curr_file.offset;
@@ -107,6 +112,42 @@ namespace BTProtocol
                 data_offset += write_bytes;
                 fs.Flush();
             }
+        }
+    
+        public byte[] ReadPieceBlock(int piece_idx, int offset, int length)
+        {
+            // All files
+            List<TFile> files = piece_filemap[piece_idx];
+
+            byte[] data = new byte[length];
+            int data_offset = 0;
+            foreach (TFile curr_file in files)
+            {
+                long file_size = file_sizes[curr_file.index];
+                long file_offset = curr_file.offset;
+                if (offset > file_size - curr_file.offset)
+                {
+                    offset -= (int) (file_size - curr_file.offset);
+                    continue;
+                }
+
+
+                int write_bytes = (int)Math.Min(file_size - file_offset - offset, length);
+                length -= write_bytes;
+                offset = 0;
+
+                FileStream fs = curr_file.filestream;
+                fs.Seek(file_offset, SeekOrigin.Begin);
+                fs.Read(data, data_offset, write_bytes);
+                data_offset += write_bytes;
+
+                if (length <= 0)
+                {
+                    break;
+                }
+            }
+
+            return data;
         }
     }
 }
