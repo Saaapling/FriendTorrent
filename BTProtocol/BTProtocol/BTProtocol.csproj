@@ -84,15 +84,20 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BitTorrent\DownloadingThreadManager.cs" />
+    <Compile Include="BitTorrent\SeedingTask.cs" />
+    <Compile Include="BitTorrent\SeedingThreadManager.cs" />
     <Compile Include="BitTorrent\TorrentTask.cs" />
     <Compile Include="BitTorrent\DownloadingTask.cs" />
     <Compile Include="BitTorrent\MainProc.cs" />
     <Compile Include="BitTorrent\Peer.cs" />
-    <Compile Include="BitTorrent\SeedingTask.cs" />
     <Compile Include="BitTorrent\TFData.cs" />
-    <Compile Include="BitTorrent\Tracker.cs" />
+    <Compile Include="BitTorrent\TrackerManager.cs" />
     <Compile Include="BitTorrent\Utils.cs" />
+    <Compile Include="BitTorrent\FileManager.cs" />
     <Compile Include="Samples\AsyncTaskTest.cs" />
+    <Compile Include="Samples\Deprecated\FileManagerOld.cs" />
+    <Compile Include="Samples\Deprecated\SeedingTaskOld.cs" />
     <Compile Include="Samples\SampleCode.cs" />
     <Compile Include="Samples\TorrentAnnounceTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -116,6 +121,9 @@
       <ProductName>.NET Framework 3.5 SP1</ProductName>
       <Install>false</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="TorrentDownloads\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

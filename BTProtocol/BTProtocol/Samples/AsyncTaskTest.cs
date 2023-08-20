@@ -26,7 +26,7 @@ namespace BTProtocol.Samples
                     CustomData data = obj as CustomData;
                     if (data == null) return;
 
-                    //data.ThreadNum = Thread.CurrentThread.ManagedThreadId;
+                    data.ThreadNum = Thread.CurrentThread.ManagedThreadId;
                 },
                 new CustomData() { Name = i, CreationTime = DateTime.Now.Ticks });
             }
