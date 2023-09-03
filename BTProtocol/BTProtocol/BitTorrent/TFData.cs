@@ -30,8 +30,8 @@ namespace BTProtocol.BitTorrent
         public long torrent_size { get; }
 
         public int[] piece_status; // 0 - Not Downloaded, 1 - Downloaded, 2 - In Progress
-        public uint bytes_uploaded;
-        public uint bytes_downloaded;
+        public long bytes_uploaded;
+        public long bytes_downloaded;
 
         public int peer_list_indx;
         public List<(string, int)> peer_list { get; set; }

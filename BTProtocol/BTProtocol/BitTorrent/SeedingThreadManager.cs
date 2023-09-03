@@ -62,7 +62,7 @@ namespace BTProtocol.BitTorrent
                 Console.WriteLine("Client connected: {0}", new_connection.Client.RemoteEndPoint.ToString());
 
                 Peer new_peer = new Peer(new_connection);
-                new_peer.GetStream().ReadTimeout = 50000;
+                new_peer.GetStream().ReadTimeout = 5000;
                 return new_peer;
             }
             return null;

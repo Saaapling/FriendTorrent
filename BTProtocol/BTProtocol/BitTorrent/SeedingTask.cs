@@ -42,7 +42,7 @@ namespace BTProtocol.BitTorrent
             {
                 Console.WriteLine(ex.Message);
             }
-
+            Console.WriteLine("I got here");
             ExitThread();
         }
 
@@ -77,7 +77,7 @@ namespace BTProtocol.BitTorrent
                     //Console.WriteLine("Bytes Read: " + bytes_read);
 
                     MessageType packet_type = (MessageType)byte_buffer[0];
-                    //Console.WriteLine("Packet Type: " + packet_type.ToString());
+                    Console.WriteLine($"IP: {peer.ip} Packet Type: {packet_type}");
                     switch (packet_type)
                     {
                         case Interested:

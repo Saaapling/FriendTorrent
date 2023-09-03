@@ -27,6 +27,7 @@ namespace BTProtocol.BitTorrent
             TFData curr_tfdata = MainProc.torrent_file_dict[download_queue.Peek()];
             while (curr_tfdata.CheckDownloadStatus())
             {
+                MainProc.file_dict[curr_tfdata.torrent_name].SetReadOnly();
                 download_queue.Dequeue();
                 if (download_queue.Count <= 0)
                 {

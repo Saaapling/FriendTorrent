@@ -60,7 +60,7 @@ namespace BTProtocol.BitTorrent
             foreach (BList tracker_url in announce_list)
             {
                 announce_urls.Add(tracker_url[0].ToString());
-                var state_timer = new Timer(UpdateTracker, tracker_url[0].ToString(), 0, -1);
+                UpdateTracker(tracker_url[0].ToString());
             }
         }
 
@@ -78,8 +78,8 @@ namespace BTProtocol.BitTorrent
             int transaction_id = random.Next();
             MemoryStream connection_request = new MemoryStream();
             connection_request.Write(Utils.Int64ToByteArray(UDP_MAGIC_CONSTANT), 0, 8);
-            connection_request.Write(Utils.IntegerToByteArray(0), 0, 4); //Message Type
-            connection_request.Write(Utils.IntegerToByteArray(transaction_id), 0, 4);
+            connection_request.Write(Utils.Int32ToByteArray(0), 0, 4); //Message Type
+            connection_request.Write(Utils.Int32ToByteArray(transaction_id), 0, 4);
                 
             byte[] received_bytes = SendUDPPacket(udp_client, tracker_ip, connection_request.ToArray());
 
@@ -107,17 +107,17 @@ namespace BTProtocol.BitTorrent
 
                 MemoryStream announce_request = new MemoryStream();
                 announce_request.Write(Utils.Int64ToByteArray(connection_id), 0, 8);
-                announce_request.Write(Utils.IntegerToByteArray(1), 0, 4);
-                announce_request.Write(Utils.IntegerToByteArray(transaction_id), 0, 4);
+                announce_request.Write(Utils.Int32ToByteArray(1), 0, 4);
+                announce_request.Write(Utils.Int32ToByteArray(transaction_id), 0, 4);
                 announce_request.Write(torrent_file.GetInfoHashBytes(), 0, 20);
                 announce_request.Write(Encoding.UTF8.GetBytes(MainProc.peerid), 0, 20);
                 announce_request.Write(Utils.Int64ToByteArray(torrent_data.bytes_downloaded), 0, 8);
                 announce_request.Write(Utils.Int64ToByteArray(torrent_data.torrent_size - torrent_data.bytes_downloaded), 0, 8);
                 announce_request.Write(Utils.Int64ToByteArray(torrent_data.bytes_uploaded), 0, 8);
-                announce_request.Write(Utils.IntegerToByteArray((int) torrent_data._event), 0, 4);
-                announce_request.Write(Utils.IntegerToByteArray(0), 0, 4);
-                announce_request.Write(Utils.IntegerToByteArray(0), 0, 4);
-                announce_request.Write(Utils.IntegerToByteArray(1000), 0, 4);
+                announce_request.Write(Utils.Int32ToByteArray((int) torrent_data._event), 0, 4);
+                announce_request.Write(Utils.Int32ToByteArray(0), 0, 4);
+                announce_request.Write(Utils.Int32ToByteArray(0), 0, 4);
+                announce_request.Write(Utils.Int32ToByteArray(1000), 0, 4);
                 announce_request.Write(Utils.Int16ToByteArray(6889), 0, 2);
 
                 received_bytes = SendUDPPacket(udp_client, tracker_ip, announce_request.ToArray());

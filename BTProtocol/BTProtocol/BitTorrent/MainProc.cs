@@ -88,28 +88,29 @@ namespace BTProtocol.BitTorrent
 
         static void Main(string[] args)
         {
+            //Fix tracker bugs
+            //Fix fiflel manager issue (file path too long)
             InitPeerid(); 
             Dictionary<string, Torrent> torrents = ParseTorrentFiles(resource_path);
-
-            //SeedingThreadManager test = new SeedingThreadManager(25);
-            //Task test_task = new Task(() => test.StartSeeding());
-            //test_task.Start();
-            //Thread.Sleep(360000000);
 
             // For each torrent file found, create and contact its tracker, and set up
             // Timers to reconnect with the tracker after a specified amount of time has passed
             foreach (KeyValuePair<string, Torrent> torrent in torrents)
             {
                 TrackerManager tracker = new TrackerManager(torrent.Value, torrent_file_dict[torrent.Key]);
-                tracker.Initialize();
                 tracker_dict.Add(torrent.Key, tracker);
             }
 
             foreach (KeyValuePair<string, TFData> torrent in torrent_file_dict)
             {
-                if (torrent.Value.IsActive())
+                // Check download status
+                if (torrent.Value.CheckDownloadStatus())
                 {
-                    file_dict[torrent.Key].Initialize();
+                    file_dict[torrent.Key].Initialize(FileAccess.Read);
+                }
+                else if (torrent.Value.IsActive())
+                {
+                    file_dict[torrent.Key].Initialize(FileAccess.ReadWrite);
                 }
             }
 
@@ -117,7 +118,7 @@ namespace BTProtocol.BitTorrent
             Thread.Sleep(2000);
 
             // Create thread-pools for downloading and uploading (25 down, 5 up)
-            SeedingThreadManager seeding_task = new SeedingThreadManager(5);
+            SeedingThreadManager seeding_task = new SeedingThreadManager(1);
             Task seeding_manager = new Task(() => seeding_task.StartSeeding());
             seeding_manager.Start();
 

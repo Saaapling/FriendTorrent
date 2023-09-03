@@ -24,7 +24,7 @@ namespace BTProtocol.BitTorrent
         {
             // Id's: choke-0, unchoke-1, interested-2, not interested-3
             MemoryStream byteStream = new MemoryStream();
-            byteStream.Write(Utils.IntegerToByteArray(1), 0, 4);
+            byteStream.Write(Utils.Int32ToByteArray(1), 0, 4);
             byteStream.WriteByte((byte) msg_id);
             peer.GetStream().Write(byteStream.ToArray(), 0, (int) byteStream.Length);
         }
@@ -33,7 +33,7 @@ namespace BTProtocol.BitTorrent
         {
             MemoryStream byteStream = new MemoryStream();
             int size = (int) Math.Ceiling(torrent_data.piece_status.Length / 8d) + 1;
-            byteStream.Write(Utils.IntegerToByteArray(size), 0, 4);
+            byteStream.Write(Utils.Int32ToByteArray(size), 0, 4);
             byteStream.WriteByte((byte) Bitfield);
             for (int i = 0; i < size - 1; i++)
             {
@@ -143,10 +143,10 @@ namespace BTProtocol.BitTorrent
 
             //Packet Structure: Size(4 bytes) + MessageType(7 - Piece) + Piece Index(4 bytes) + Piece Offset (4 bytes) + Data
             MemoryStream byteStream = new MemoryStream();
-            byteStream.Write(Utils.IntegerToByteArray(9 + data.Length), 0, 4);
+            byteStream.Write(Utils.Int32ToByteArray(9 + data.Length), 0, 4);
             byteStream.WriteByte(7);
-            byteStream.Write(Utils.IntegerToByteArray(piece_index), 0, 4);
-            byteStream.Write(Utils.IntegerToByteArray(piece_offset), 0, 4);
+            byteStream.Write(Utils.Int32ToByteArray(piece_index), 0, 4);
+            byteStream.Write(Utils.Int32ToByteArray(piece_offset), 0, 4);
             byteStream.Write(data, 0, data.Length);
 
             byte[] message = byteStream.ToArray();

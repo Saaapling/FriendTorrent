@@ -17,7 +17,7 @@ namespace BTProtocol
             // Start offset to this TFile
             public long offset;
             public FileStream filestream;
-            
+
             public TFile(int index, FileStream fs, long offset)
             {
                 this.index = index;
@@ -40,7 +40,7 @@ namespace BTProtocol
             tf_lock = new Semaphore(1, 1);
         }
 
-        public void Initialize()
+        public void Initialize(FileAccess fileAccess)
         {
             if (piece_filemap != null)
                 return;
@@ -53,7 +53,7 @@ namespace BTProtocol
             {
                 TFile file;
                 string torrent_path = torrent_folder + torrent.File.FileName;
-                FileStream fs = File.Open(torrent_path, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+                FileStream fs = File.Open(torrent_path, FileMode.OpenOrCreate, fileAccess, FileShare.Read);
                 file_sizes = new long[1] { torrent.TotalSize };
                 for (int i = 0; i < pieces; i++)
                 {
@@ -70,9 +70,9 @@ namespace BTProtocol
                 total_offsets[0] = 0;
                 for (int i = 0; i < file_count; i++)
                 {
-                    FileStream fs = File.Open(torrent_folder + torrent.Files[i].FileName, FileMode.OpenOrCreate, FileAccess.ReadWrite);
+                    FileStream fs = File.Open(torrent_folder + torrent.Files[i].FileName, FileMode.OpenOrCreate, fileAccess, FileShare.Read);
                     filestreams[i] = fs;
-                    total_offsets[i+1] = total_offsets[i] + torrent.Files[i].FileSize;
+                    total_offsets[i + 1] = total_offsets[i] + torrent.Files[i].FileSize;
                     file_sizes[i] = torrent.Files[i].FileSize;
                 }
 
@@ -113,7 +113,7 @@ namespace BTProtocol
                 fs.Flush();
             }
         }
-    
+
         public byte[] ReadPieceBlock(int piece_idx, int offset, int length)
         {
             // All files
@@ -127,7 +127,7 @@ namespace BTProtocol
                 long file_offset = curr_file.offset;
                 if (offset > file_size - curr_file.offset)
                 {
-                    offset -= (int) (file_size - curr_file.offset);
+                    offset -= (int)(file_size - curr_file.offset);
                     continue;
                 }
 
@@ -148,6 +148,29 @@ namespace BTProtocol
             }
 
             return data;
+        }
+
+        public void SetReadOnly()
+        {
+            HashSet<int> read_only_files = new HashSet<int>();
+            Dictionary<int, FileStream> filestreams = new Dictionary<int, FileStream>();
+            for (int index = 0; index < piece_filemap.Length; index++ )
+            {
+                for (int j = 0; j < piece_filemap[index].Count; j++)
+                {
+                    TFile file = piece_filemap[index][j];
+                    FileStream fileStream = file.filestream;
+                    if (!(read_only_files.Contains(file.index)))
+                    {
+                        fileStream.Close();
+                        fileStream = File.Open(file.filestream.Name, FileMode.Open, FileAccess.Read, FileShare.Read);
+                        read_only_files.Add(file.index);
+                        filestreams[file.index] = fileStream;
+                    }
+                    file.filestream = filestreams[file.index];
+                    piece_filemap[index][j] = file;
+                }
+            }
         }
     }
 }

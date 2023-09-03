@@ -57,15 +57,6 @@ namespace BTProtocol.BitTorrent
             return BitConverter.ToInt64(int_bytes, 0);
         }
 
-        public static byte[] IntegerToByteArray(int x)
-        {
-            byte[] size_bytes = BitConverter.GetBytes(x);
-            if (BitConverter.IsLittleEndian)
-                Array.Reverse(size_bytes);
-
-            return size_bytes;
-        }
-
         public static byte[] Int16ToByteArray(Int16 x)
         {
             byte[] size_bytes = BitConverter.GetBytes(x);
@@ -75,6 +66,17 @@ namespace BTProtocol.BitTorrent
             return size_bytes;
 
         }
+
+        public static byte[] Int32ToByteArray(int x)
+        {
+            byte[] size_bytes = BitConverter.GetBytes(x);
+            if (BitConverter.IsLittleEndian)
+                Array.Reverse(size_bytes);
+
+            return size_bytes;
+        }
+
+
         public static byte[] Int64ToByteArray(Int64 x)
         {
             byte[] size_bytes = BitConverter.GetBytes(x);
