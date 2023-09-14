@@ -32,9 +32,6 @@ namespace BTProtocol.BitTorrent
         public int port { get; private set; }
 
         public bool interested { get; set; }
-        public bool handshake { get; set;}
-
-        public string torrent_name { get; set; }
 
         public Peer(TcpClient client, int bitfield_size, string torrent_name)
         {
@@ -43,10 +40,8 @@ namespace BTProtocol.BitTorrent
             port = ((IPEndPoint)client.Client.RemoteEndPoint).Port;
             bitfield = new bool[bitfield_size];
             interested = false;
-            handshake = false;
             high_priority_pieces = new List<int>();
             low_priority_pieces = new List<int>();
-            this.torrent_name = torrent_name;
         }
 
         public Peer(TcpClient client)
@@ -55,7 +50,6 @@ namespace BTProtocol.BitTorrent
             ip = ((IPEndPoint)client.Client.RemoteEndPoint).Address.ToString();
             port = ((IPEndPoint)client.Client.RemoteEndPoint).Port;
             interested = false;
-            handshake = false;
         }
 
         public bool CheckInterested()

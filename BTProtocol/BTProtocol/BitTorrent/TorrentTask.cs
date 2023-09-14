@@ -1,13 +1,10 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Sockets;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
+using static BTProtocol.BitTorrent.Utils;
 using static BTProtocol.BitTorrent.MessageType;
 
 namespace BTProtocol.BitTorrent
@@ -17,14 +14,16 @@ namespace BTProtocol.BitTorrent
         protected TFData torrent_data;
         protected FileManager file_manager;
         protected Peer peer;
+        protected DateTime? last_interested = null;
+        protected int countdown;
 
         protected abstract private void ExitThread();
 
+        // msg_ids: choke-0, unchoke-1, interested-2, not interested-3
         public void SendBitMessageType(MessageType msg_id)
         {
-            // Id's: choke-0, unchoke-1, interested-2, not interested-3
             MemoryStream byteStream = new MemoryStream();
-            byteStream.Write(Utils.Int32ToByteArray(1), 0, 4);
+            byteStream.Write(Int32ToByteArray(1), 0, 4);
             byteStream.WriteByte((byte) msg_id);
             peer.GetStream().Write(byteStream.ToArray(), 0, (int) byteStream.Length);
         }
@@ -33,11 +32,11 @@ namespace BTProtocol.BitTorrent
         {
             MemoryStream byteStream = new MemoryStream();
             int size = (int) Math.Ceiling(torrent_data.piece_status.Length / 8d) + 1;
-            byteStream.Write(Utils.Int32ToByteArray(size), 0, 4);
+            byteStream.Write(Int32ToByteArray(size), 0, 4);
             byteStream.WriteByte((byte) Bitfield);
             for (int i = 0; i < size - 1; i++)
             {
-                byteStream.WriteByte(Utils.GetBitfieldByte(torrent_data.piece_status, i));
+                byteStream.WriteByte(GetBitfieldByte(torrent_data.piece_status, i));
             }
             peer.GetStream().Write(byteStream.ToArray(), 0, size+4);
         }
@@ -127,9 +126,9 @@ namespace BTProtocol.BitTorrent
         public void ReceiveRequest(byte[] byte_buffer)
         {
             // Format of byte_buffer is: MessageType(6 - Request) + Piece Index(4 bytes) + Piece Offset (4 bytes) + Length (4 bytes) 
-            int piece_index = Utils.ParseInt(byte_buffer, 1);
-            int piece_offset = Utils.ParseInt(byte_buffer, 5);
-            int block_length = Utils.ParseInt(byte_buffer, 9);
+            int piece_index = ParseInt(byte_buffer, 1);
+            int piece_offset = ParseInt(byte_buffer, 5);
+            int block_length = ParseInt(byte_buffer, 9);
 
             // Check that we have this peice fully downloaded
             if (torrent_data.piece_status[piece_index] != 1)
@@ -143,10 +142,10 @@ namespace BTProtocol.BitTorrent
 
             //Packet Structure: Size(4 bytes) + MessageType(7 - Piece) + Piece Index(4 bytes) + Piece Offset (4 bytes) + Data
             MemoryStream byteStream = new MemoryStream();
-            byteStream.Write(Utils.Int32ToByteArray(9 + data.Length), 0, 4);
+            byteStream.Write(Int32ToByteArray(9 + data.Length), 0, 4);
             byteStream.WriteByte(7);
-            byteStream.Write(Utils.Int32ToByteArray(piece_index), 0, 4);
-            byteStream.Write(Utils.Int32ToByteArray(piece_offset), 0, 4);
+            byteStream.Write(Int32ToByteArray(piece_index), 0, 4);
+            byteStream.Write(Int32ToByteArray(piece_offset), 0, 4);
             byteStream.Write(data, 0, data.Length);
 
             byte[] message = byteStream.ToArray();

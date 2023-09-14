@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Net.Sockets;
 
+using static BTProtocol.BitTorrent.SeedingThreadManager;
+using static BTProtocol.BitTorrent.Utils;
+using static BTProtocol.BitTorrent.Logger;
 using static BTProtocol.BitTorrent.MessageType;
 
 namespace BTProtocol.BitTorrent
@@ -9,8 +12,8 @@ namespace BTProtocol.BitTorrent
     {
         protected override private void ExitThread()
         {
-            SeedingThreadManager.thread_pool.Release();
-            Console.WriteLine("Exiting Task");
+            thread_pool.Release();
+            logger.Info("Exiting Task");
         }
 
         public SeedingTask(Peer peer)
@@ -18,16 +21,16 @@ namespace BTProtocol.BitTorrent
             this.peer = peer;
             torrent_data = null;
             file_manager = null;
+            last_interested = DateTime.Now;
+            countdown = 300;
         }
 
         public void StartTask()
         {
             // Call Wait to decrement the count of available threads.
-            SeedingThreadManager.thread_pool.Wait();
+            thread_pool.Wait();
             // Release the lock on main so it can continue execution.
-            SeedingThreadManager.main_semaphore.Release();
-            NetworkStream peer_netstream = peer.GetStream();
-
+            main_semaphore.Release();
             try
             { 
                 string torrent_name = ReceiveHandshakeSeeding();
@@ -35,14 +38,13 @@ namespace BTProtocol.BitTorrent
                 file_manager = MainProc.file_dict[torrent_name];
                 SendHandshake();
                 SendBitField();
-
                 ReceivePackets();
             } 
             catch(Exception ex) 
             {
-                Console.WriteLine(ex.Message);
+                logger.Error(ex.Message);
             }
-            Console.WriteLine("I got here");
+
             ExitThread();
         }
 
@@ -63,21 +65,22 @@ namespace BTProtocol.BitTorrent
                 byte[] byte_buffer = new byte[4];
                 int packet_size;
                 netstream.Read(byte_buffer, 0, 4);
-                packet_size = Utils.ParseInt(byte_buffer);
+                packet_size = ParseInt(byte_buffer);
 
                 if (packet_size > 0)
                 {
-                    //Console.WriteLine("Packet Size: " + packet_size);
+                    logger.Noise($"Packet Size: {packet_size}", DebugFlags.Seeding);
                     byte_buffer = new byte[packet_size];
                     int bytes_read = 0;
                     while (bytes_read < packet_size)
                     {
                         bytes_read += netstream.Read(byte_buffer, bytes_read, packet_size - bytes_read);
                     }
-                    //Console.WriteLine("Bytes Read: " + bytes_read);
+                    logger.Noise($"Bytes Read: {bytes_read}", DebugFlags.Seeding);
 
                     MessageType packet_type = (MessageType)byte_buffer[0];
-                    Console.WriteLine($"IP: {peer.ip} Packet Type: {packet_type}");
+                    logger.Noise($"IP: {peer.ip} Packet Type: {packet_type}", DebugFlags.Seeding);
+                    last_interested = DateTime.Now;
                     switch (packet_type)
                     {
                         case Interested:
@@ -94,6 +97,11 @@ namespace BTProtocol.BitTorrent
                             // Not handled by current seeding implementation
                             break;
                     }
+                }
+
+                if (DateTime.Now.Subtract(last_interested ??= DateTime.Now).Seconds > countdown)
+                {
+                    break;
                 }
             }
         }

@@ -8,11 +8,13 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
+using static BTProtocol.BitTorrent.Logger;
 
 namespace BTProtocol.BitTorrent
 {
     internal static class Utils
     {
+        public static Logger logger = new Logger(LoggingLevel.Info, (int) DebugFlags.All);
 
         public static BencodeParser parser = new BencodeParser();
         public const int BLOCK_SIZE = 16384; //2^14
@@ -25,7 +27,7 @@ namespace BTProtocol.BitTorrent
             return Encoding.UTF8.GetString(WebUtility.UrlEncodeToBytes(Infohash, 0, 20));
         }
 
-        public static void WriteToFile(String filepath, byte[] data)
+        public static void WriteToFile(string filepath, byte[] data)
         {
             using var writer = new BinaryWriter(File.OpenWrite(filepath));
             writer.Write(data);
@@ -39,7 +41,7 @@ namespace BTProtocol.BitTorrent
                              .ToArray();
         }
 
-        public static int ParseInt(byte[] byte_buffer, int index=0)
+        public static int ParseInt(byte[] byte_buffer, int index = 0)
         {
             byte[] int_bytes = new byte[4];
             Array.Copy(byte_buffer, index, int_bytes, 0, 4);
@@ -105,10 +107,10 @@ namespace BTProtocol.BitTorrent
             BDictionary dictionary = tf.ToBDictionary();
             string info_hash = tf.GetInfoHash();
 
-            Console.WriteLine(info_hash);
-            Console.WriteLine(string.Join("\n", dictionary.Select(m => $"{m.Key}={m.Value}")));
-            Console.WriteLine(((BDictionary)dictionary["info"])["name"]);
-            //Console.WriteLine(string.Join("\n", ((BDictionary) dictionary["info"]).Select(m => $"{m.Key}={m.Value}")));
+            logger.Debug(info_hash);
+            logger.Debug(string.Join("\n", dictionary.Select(m => $"{m.Key}={m.Value}")));
+            logger.Debug(((BDictionary)dictionary["info"])["name"].ToString());
+            //logger.Debug(string.Join("\n", ((BDictionary) dictionary["info"]).Select(m => $"{m.Key}={m.Value}")));
 
             Console.ReadLine();
         }
@@ -134,7 +136,7 @@ namespace BTProtocol.BitTorrent
             Array.Copy(data, index, result, 0, length);
             return result;
         }
-        
+
         private static string GetLocalIPAddress()
         {
             var host = Dns.GetHostEntry(Dns.GetHostName());
@@ -142,7 +144,7 @@ namespace BTProtocol.BitTorrent
             {
                 if (ip.AddressFamily == AddressFamily.InterNetwork)
                 {
-                    Console.WriteLine(ip.ToString());
+                    logger.Info($"Local IP Address: {ip.ToString()}");
                     return ip.ToString();
                 }
             }
@@ -151,7 +153,7 @@ namespace BTProtocol.BitTorrent
 
         private static string GetPublicIPAddress()
         {
-            String address = "";
+            string address = "";
             WebRequest request = WebRequest.Create("http://checkip.dyndns.org/");
             using (WebResponse response = request.GetResponse())
             using (StreamReader stream = new StreamReader(response.GetResponseStream()))
