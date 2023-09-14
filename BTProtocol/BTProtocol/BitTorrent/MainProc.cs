@@ -91,6 +91,11 @@ namespace BTProtocol.BitTorrent
             InitPeerid(); 
             Dictionary<string, Torrent> torrents = ParseTorrentFiles(resource_path);
 
+            //SeedingThreadManager test = new SeedingThreadManager(25);
+            //Task test_task = new Task(() => test.StartSeeding());
+            //test_task.Start();
+            //Thread.Sleep(360000000);
+
             // For each torrent file found, create and contact its tracker, and set up
             // Timers to reconnect with the tracker after a specified amount of time has passed
             foreach (KeyValuePair<string, Torrent> torrent in torrents)

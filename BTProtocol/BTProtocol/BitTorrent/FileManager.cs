@@ -17,7 +17,6 @@ namespace BTProtocol
             // Start offset to this TFile
             public long offset;
             public FileStream filestream;
-
             public TFile(int index, FileStream fs, long offset)
             {
                 this.index = index;
@@ -113,7 +112,6 @@ namespace BTProtocol
                 fs.Flush();
             }
         }
-
         public byte[] ReadPieceBlock(int piece_idx, int offset, int length)
         {
             // All files
