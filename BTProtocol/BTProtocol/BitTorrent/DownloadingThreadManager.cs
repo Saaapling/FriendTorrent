@@ -1,9 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+
+using static BTProtocol.BitTorrent.Utils;
 
 namespace BTProtocol.BitTorrent
 {
@@ -27,10 +26,11 @@ namespace BTProtocol.BitTorrent
             TFData curr_tfdata = MainProc.torrent_file_dict[download_queue.Peek()];
             while (curr_tfdata.CheckDownloadStatus())
             {
+                MainProc.file_dict[curr_tfdata.torrent_name].SetReadOnly();
                 download_queue.Dequeue();
                 if (download_queue.Count <= 0)
                 {
-                    Console.WriteLine("Leaving Downloading Manager - No torrents remaining");
+                    logger.Critical("Leaving Downloading Manager - No torrents remaining");
                     return null;
                 }
                 curr_tfdata = MainProc.torrent_file_dict[download_queue.Peek()];
@@ -49,7 +49,6 @@ namespace BTProtocol.BitTorrent
             {
                 download_queue.Dequeue();
                 
-
                 if (MainProc.tracker_dict[tf_data.torrent_name].ContactTracker())
                 {
                     tf_data.peer_list_indx = 0;
@@ -64,7 +63,6 @@ namespace BTProtocol.BitTorrent
         {
             // For each torrent, spin up threads to download pieces (blocks when thread_pool is exhausted)
             // Only downloads from one torrent at a time, once a torrent is finished downloading, start on the next torrent
-            // Todo: Implement logic to switch from one torrent to the next (and to mark finished torrents as complete)
 
             download_queue = new Queue<string>(MainProc.torrent_file_dict.Keys);
             int tc = 0;
@@ -82,16 +80,15 @@ namespace BTProtocol.BitTorrent
                 thread_pool.Release();
 
                 tc++;
-                Console.WriteLine("Starting new Downloading Task: " + tc);
+                logger.Info($"Starting new Downloading Task: {tc}");
                 Task t = new Task(() => task.StartTask());
                 t.Start();
-
 
                 main_semaphore.WaitOne();
                 thread_pool.Wait();
             }
 
-            Console.WriteLine("Downloading Manager Exited");
+            logger.Critical("Downloading Manager Exited");
         }
     }
 }

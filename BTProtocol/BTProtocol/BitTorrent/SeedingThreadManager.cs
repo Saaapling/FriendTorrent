@@ -4,6 +4,9 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
+using static BTProtocol.BitTorrent.Utils;
+using static BTProtocol.BitTorrent.Logger;
+
 namespace BTProtocol.BitTorrent
 {
     internal class SeedingThreadManager
@@ -24,7 +27,7 @@ namespace BTProtocol.BitTorrent
 
         public void StartSeeding()
         {
-            IPAddress ipAddress = IPAddress.Parse(Utils.LOCAL_IP_ADDRESS);
+            IPAddress ipAddress = IPAddress.Parse(LOCAL_IP_ADDRESS);
             IPEndPoint local = new IPEndPoint(ipAddress, port);
 
             listener = new TcpListener(local);
@@ -44,7 +47,7 @@ namespace BTProtocol.BitTorrent
                 thread_pool.Release();
 
                 tc++;
-                Console.WriteLine("Starting new Seeding Task: " + tc);
+                logger.Info($"Starting new Seeding Task: {tc}");
                 Task t = new Task(() => task.StartTask());
                 t.Start();
 
@@ -59,10 +62,10 @@ namespace BTProtocol.BitTorrent
             if (available)
             {
                 TcpClient new_connection = listener.AcceptTcpClient();
-                Console.WriteLine("Client connected: {0}", new_connection.Client.RemoteEndPoint.ToString());
+                logger.Info($"Client connected: {new_connection.Client.RemoteEndPoint}");
 
                 Peer new_peer = new Peer(new_connection);
-                new_peer.GetStream().ReadTimeout = 50000;
+                new_peer.GetStream().ReadTimeout = 5000;
                 return new_peer;
             }
             return null;

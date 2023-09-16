@@ -93,11 +93,11 @@
     <Compile Include="BitTorrent\Peer.cs" />
     <Compile Include="BitTorrent\TFData.cs" />
     <Compile Include="BitTorrent\TrackerManager.cs" />
-    <Compile Include="BitTorrent\Utils.cs" />
     <Compile Include="BitTorrent\FileManager.cs" />
+    <Compile Include="BitTorrent\Utils\Logger.cs" />
+    <Compile Include="BitTorrent\Utils\Utils.cs" />
     <Compile Include="Samples\AsyncTaskTest.cs" />
     <Compile Include="Samples\Deprecated\FileManagerOld.cs" />
-    <Compile Include="Samples\Deprecated\SeedingTaskOld.cs" />
     <Compile Include="Samples\SampleCode.cs" />
     <Compile Include="Samples\TorrentAnnounceTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

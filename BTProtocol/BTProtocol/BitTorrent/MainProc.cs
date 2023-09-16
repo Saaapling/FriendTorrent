@@ -4,18 +4,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-using BencodeNET.Objects;
 using BencodeNET.Parsing;
 using BencodeNET.Torrents;
 using System.Threading;
 using System.Threading.Tasks;
+
+using static BTProtocol.BitTorrent.Utils;
 
 namespace BTProtocol.BitTorrent
 {
     class MainProc
     {
         public static string peerid { get; set; }
-        //public Queue<TFData> download_queue { get; private set; }
         public const string resource_path = @"../../Resources/";
         public const string serialized_path = resource_path + "TorrentData/";
         public static Dictionary<string, TFData> torrent_file_dict = new Dictionary<string, TFData>();
@@ -79,7 +79,7 @@ namespace BTProtocol.BitTorrent
             foreach (string file in torrent_data_files)
             {
                 string torrent_name = file.Split('/').Last();
-                Console.WriteLine("Removing serialized torrent data: " + torrent_name);
+                logger.Info($"Removing serialized torrent data: {torrent_name}");
                 File.Delete(file);
             }
 
@@ -101,19 +101,23 @@ namespace BTProtocol.BitTorrent
             foreach (KeyValuePair<string, Torrent> torrent in torrents)
             {
                 TrackerManager tracker = new TrackerManager(torrent.Value, torrent_file_dict[torrent.Key]);
-                tracker.Initialize();
                 tracker_dict.Add(torrent.Key, tracker);
             }
 
             foreach (KeyValuePair<string, TFData> torrent in torrent_file_dict)
             {
-                if (torrent.Value.IsActive())
+                // Check download status
+                if (torrent.Value.CheckDownloadStatus())
                 {
-                    file_dict[torrent.Key].Initialize();
+                    file_dict[torrent.Key].Initialize(FileAccess.Read);
+                }
+                else if (torrent.Value.IsActive())
+                {
+                    file_dict[torrent.Key].Initialize(FileAccess.ReadWrite);
                 }
             }
 
-            // Forced sleep to allow trackers to respond n time before creating downloading tasks
+            // Forced sleep to allow trackers to respond in time before creating downloading tasks
             Thread.Sleep(2000);
 
             // Create thread-pools for downloading and uploading (25 down, 5 up)

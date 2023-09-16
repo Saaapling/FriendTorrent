@@ -8,8 +8,15 @@
 	* [Done] Handle all Message types in Downloading Peer
 	* [Done] Implement peer seeding
 	* [Done] For multithreading instead of spinning a thread for each peer. Use async Tasks to download chunks, we can use logic where we download as many pieces available from a peer and then move on to others that more available chunks for us. 
+	* [Done] Add in-progress torrents that have exhausted their peer list to a seperate queue/list (await next tracker update)
+	* [Done] When a peer is no longer in the tracker remove them from the tracker list
 	* [In progress] Code cleanup.
-	* [Todo] Command arguments, UI, reconfigure where resources are added/downloaded
+	* [Todo] Add a last interested to seeding task
+	* [Todo] Command arguments, reconfigure where resources are added/downloaded
+
+
+### UI Plannning:
+	* ???????
 	
 
 ### Todo:
@@ -17,8 +24,9 @@
 	 * Nice to have: 
 		* Verify that files/pieces downloaded are correct through a hash comparison when starting the program
 			* Manual hash calculation + check serialized file
-		* Add in-progress torrents that have exhausted their peer list to a seperate queue/list (await next tracker update)
-		* When a peer is no longer in the tracker remove them from the tracker list
+		* Todo notify others Cancel to if they are downloading the same piece (useful in 'endgame')
+		* Send out 'haves' if we have downloaded a peice
+		
 		* Integration with friend viewer co. ping Shio
 
 	 * Wistful Thinking:

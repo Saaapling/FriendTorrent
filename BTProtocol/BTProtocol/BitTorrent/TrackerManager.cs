@@ -11,6 +11,9 @@ using BencodeNET.Parsing;
 using BencodeNET.Torrents;
 using System.Collections.Generic;
 
+using static BTProtocol.BitTorrent.Utils;
+using static BTProtocol.BitTorrent.Logger;
+
 namespace BTProtocol.BitTorrent
 {
     class TrackerManager
@@ -60,7 +63,7 @@ namespace BTProtocol.BitTorrent
             foreach (BList tracker_url in announce_list)
             {
                 announce_urls.Add(tracker_url[0].ToString());
-                var state_timer = new Timer(UpdateTracker, tracker_url[0].ToString(), 0, -1);
+                UpdateTracker(tracker_url[0].ToString());
             }
         }
 
@@ -71,22 +74,22 @@ namespace BTProtocol.BitTorrent
             announce_url = tokens[1].Substring(2);
             int port = int.Parse(tokens[2].Split('/')[0]);
             Random random = new Random();
-            //Console.WriteLine("Tracker ip: " + Dns.GetHostEntry(announce_url).AddressList[0]);
+            logger.Debug($"Tracker ip: {Dns.GetHostEntry(announce_url).AddressList[0]}", DebugFlags.Tracker);
             IPEndPoint tracker_ip = new IPEndPoint(Dns.GetHostEntry(announce_url).AddressList[0], port);
             UdpClient udp_client = new UdpClient(Dns.GetHostEntry(announce_url).AddressList[0].ToString(), port);
 
             int transaction_id = random.Next();
             MemoryStream connection_request = new MemoryStream();
-            connection_request.Write(Utils.Int64ToByteArray(UDP_MAGIC_CONSTANT), 0, 8);
-            connection_request.Write(Utils.IntegerToByteArray(0), 0, 4); //Message Type
-            connection_request.Write(Utils.IntegerToByteArray(transaction_id), 0, 4);
+            connection_request.Write(Int64ToByteArray(UDP_MAGIC_CONSTANT), 0, 8);
+            connection_request.Write(Int32ToByteArray(0), 0, 4); //Message Type
+            connection_request.Write(Int32ToByteArray(transaction_id), 0, 4);
                 
             byte[] received_bytes = SendUDPPacket(udp_client, tracker_ip, connection_request.ToArray());
 
             // Check if we recieved a valid message by matching the message type and transaction_id
-            if (received_bytes.Length >= 16 && Utils.ParseInt(received_bytes, 0) == 0 && transaction_id == Utils.ParseInt(received_bytes, 4))
+            if (received_bytes.Length >= 16 && ParseInt(received_bytes, 0) == 0 && transaction_id == ParseInt(received_bytes, 4))
             {
-                Int64 connection_id = Utils.ParseInt64(received_bytes, 8);
+                Int64 connection_id = ParseInt64(received_bytes, 8);
 
                 /*
                     Offset  Size    Name    Value
@@ -106,24 +109,24 @@ namespace BTProtocol.BitTorrent
                 */
 
                 MemoryStream announce_request = new MemoryStream();
-                announce_request.Write(Utils.Int64ToByteArray(connection_id), 0, 8);
-                announce_request.Write(Utils.IntegerToByteArray(1), 0, 4);
-                announce_request.Write(Utils.IntegerToByteArray(transaction_id), 0, 4);
+                announce_request.Write(Int64ToByteArray(connection_id), 0, 8);
+                announce_request.Write(Int32ToByteArray(1), 0, 4);
+                announce_request.Write(Int32ToByteArray(transaction_id), 0, 4);
                 announce_request.Write(torrent_file.GetInfoHashBytes(), 0, 20);
                 announce_request.Write(Encoding.UTF8.GetBytes(MainProc.peerid), 0, 20);
-                announce_request.Write(Utils.Int64ToByteArray(torrent_data.bytes_downloaded), 0, 8);
-                announce_request.Write(Utils.Int64ToByteArray(torrent_data.torrent_size - torrent_data.bytes_downloaded), 0, 8);
-                announce_request.Write(Utils.Int64ToByteArray(torrent_data.bytes_uploaded), 0, 8);
-                announce_request.Write(Utils.IntegerToByteArray((int) torrent_data._event), 0, 4);
-                announce_request.Write(Utils.IntegerToByteArray(0), 0, 4);
-                announce_request.Write(Utils.IntegerToByteArray(0), 0, 4);
-                announce_request.Write(Utils.IntegerToByteArray(1000), 0, 4);
-                announce_request.Write(Utils.Int16ToByteArray(6889), 0, 2);
+                announce_request.Write(Int64ToByteArray(torrent_data.bytes_downloaded), 0, 8);
+                announce_request.Write(Int64ToByteArray(torrent_data.torrent_size - torrent_data.bytes_downloaded), 0, 8);
+                announce_request.Write(Int64ToByteArray(torrent_data.bytes_uploaded), 0, 8);
+                announce_request.Write(Int32ToByteArray((int) torrent_data._event), 0, 4);
+                announce_request.Write(Int32ToByteArray(0), 0, 4);
+                announce_request.Write(Int32ToByteArray(0), 0, 4);
+                announce_request.Write(Int32ToByteArray(1000), 0, 4);
+                announce_request.Write(Int16ToByteArray(6889), 0, 2);
 
                 received_bytes = SendUDPPacket(udp_client, tracker_ip, announce_request.ToArray());
-                if (received_bytes.Length >= 16 && Utils.ParseInt(received_bytes, 0) == 1 && transaction_id == Utils.ParseInt(received_bytes, 4))
+                if (received_bytes.Length >= 16 && ParseInt(received_bytes, 0) == 1 && transaction_id == ParseInt(received_bytes, 4))
                 {
-                    int interval = Utils.ParseInt(received_bytes, 8);
+                    int interval = ParseInt(received_bytes, 8);
                     return (Utils.SubArray(received_bytes, 20, received_bytes.Length - 20), interval);
                 }
             }
@@ -149,7 +152,9 @@ namespace BTProtocol.BitTorrent
         {
             try
             {
-                udp_client.Send(message, (int)message.Length);
+                // Unsure if flushing the socket is needed
+                FlushUdpSocket(udp_client, tracker_ip);
+                udp_client.Send(message, message.Length);
                 udp_client.Client.ReceiveTimeout = 5000;
                 return udp_client.Receive(ref tracker_ip);
             }
@@ -164,7 +169,7 @@ namespace BTProtocol.BitTorrent
             byte[] data;
             StringBuilder sb = new StringBuilder();
             sb.Append(announce_url);
-            sb.Append("?info_hash=").Append(Utils.UrlSafeStringInfohash(torrent_file.GetInfoHashBytes()));
+            sb.Append("?info_hash=").Append(UrlSafeStringInfohash(torrent_file.GetInfoHashBytes()));
             sb.Append("&peer_id=").Append(MainProc.peerid);
             sb.Append("&port=").Append(6889);
             sb.Append("&uploaded=").Append(torrent_data.bytes_uploaded);
@@ -188,7 +193,6 @@ namespace BTProtocol.BitTorrent
 
         private int SendRecvToTracker(string announce_url)
         {
-            // Console.WriteLine(sb.ToString());
             byte[] data;
             byte[] buffer;
             int interval; 
@@ -199,7 +203,7 @@ namespace BTProtocol.BitTorrent
             else
             {
                 data = SendHttpTrackerRequest(announce_url);
-                BDictionary tracker_dict = Utils.parser.Parse<BDictionary>(data);
+                BDictionary tracker_dict = parser.Parse<BDictionary>(data);
                 BString peers = tracker_dict.Get<BString>("peers");
                 buffer = peers.Value.ToArray();
                 interval = int.Parse(tracker_dict["interval"].ToString());
@@ -208,10 +212,10 @@ namespace BTProtocol.BitTorrent
             List<(string, int)> tracker_peers = new List<(string, int)>();
             for (int i = 0; i < buffer.Length; i += 6)
             {
-                string ip =((int)buffer[i] + "." + (int)buffer[i + 1] + "." + (int)buffer[i + 2] + "." + (int)buffer[i + 3]);
+                string ip = $"{buffer[i]}.{buffer[i+1]}.{buffer[i+2]}.{buffer[i+3]}";
                 int port = buffer[i + 4] << 8;
                 port += buffer[i + 5];
-                if (!torrent_data.peer_list.Contains((ip, port)) && !ip.Equals(Utils.PUBLIC_IP_ADDRESS))
+                if (!torrent_data.peer_list.Contains((ip, port)) && !ip.Equals(PUBLIC_IP_ADDRESS))
                 {
                     torrent_data.peer_list.Add((ip, port));
                 }
@@ -227,7 +231,7 @@ namespace BTProtocol.BitTorrent
                     torrent_data.peer_list.Remove((ip, port));
                     if (i < torrent_data.peer_list_indx)
                     {
-                        Interlocked.Decrement(ref this.torrent_data.peer_list_indx);
+                        Interlocked.Decrement(ref torrent_data.peer_list_indx);
                     }
                     i -= 1;
                 }
@@ -239,15 +243,14 @@ namespace BTProtocol.BitTorrent
         private void UpdateTracker(Object obj)
         {
             string url = (string) obj;
-            Console.WriteLine("Contacting Tracker: " + url);
+            logger.Info($"Contacting Tracker: {url}");
             try
             {
                 int wait_time = SendRecvToTracker(url);
                 var state_timer = new Timer(UpdateTracker, url, wait_time * 1000, -1);
             }catch (Exception e) 
-            { 
-                Console.WriteLine("Lost a tracker: " + url); 
-                Console.WriteLine(e.Message);
+            {
+                logger.Error(e.Message);
             }
 
             last_contacted = DateTime.Now;
@@ -260,11 +263,11 @@ namespace BTProtocol.BitTorrent
                 return false;
             }
 
-            Console.WriteLine("Attempting to recontact trackers");
+            logger.Info("Attempting to recontact trackers");
             last_contacted = DateTime.Now;
             foreach (string url in announce_urls)
             {
-                Console.WriteLine("Contacting Tracker: " + url);
+                logger.Info($"Contacting Tracker: {url}");
                 SendRecvToTracker(url);
             }
             return true;
