@@ -7,7 +7,6 @@ using static BTProtocol.BitTorrent.DownloadingThreadManager;
 using static BTProtocol.BitTorrent.Utils;
 using static BTProtocol.BitTorrent.Logger;
 using static BTProtocol.BitTorrent.MessageType;
-using System.IO;
 
 namespace BTProtocol.BitTorrent
 {

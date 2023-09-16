@@ -98,7 +98,6 @@
     <Compile Include="BitTorrent\Utils\Utils.cs" />
     <Compile Include="Samples\AsyncTaskTest.cs" />
     <Compile Include="Samples\Deprecated\FileManagerOld.cs" />
-    <Compile Include="Samples\Deprecated\SeedingTaskOld.cs" />
     <Compile Include="Samples\SampleCode.cs" />
     <Compile Include="Samples\TorrentAnnounceTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
