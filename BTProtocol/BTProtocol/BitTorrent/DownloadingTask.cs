@@ -14,7 +14,7 @@ namespace BTProtocol.BitTorrent
     sealed internal class DownloadingTask : TorrentTask
     {
         TcpClient client;
-        struct PieceData
+        public struct PieceData
         {
             public int index;
             public int last_block_index;
@@ -52,7 +52,7 @@ namespace BTProtocol.BitTorrent
 
             // Call Wait to decrement the count of available threads.
             thread_pool.Wait();
-            // Release the lock on main so it can continue execution.
+            // Release the lock on downloading manager so it can continue execution.
             main_semaphore.Release();
 
             // Check the TFData to see if there are pieces that stll need to be downloaded. 
@@ -116,7 +116,7 @@ namespace BTProtocol.BitTorrent
             {
                 logger.Debug($"Connection Successful: {ipaddr}:{port}", DebugFlags.Downloading);
                 peer = new Peer(client, torrent_data.piece_status.Length, torrent_data.torrent_name);
-                peer.GetStream().ReadTimeout = 30000;
+                peer.GetStream().ReadTimeout = 5000;
                 peer.GetStream().Flush();
 
                 torrent_data.connected_peers.Add((address.Item1, address.Item2));
@@ -137,10 +137,9 @@ namespace BTProtocol.BitTorrent
             while (true)
             {
                 byte[] byte_buffer = new byte[4];
-                int packet_size;
                 peer.GetStream().Read(byte_buffer, 0, 4);
-                packet_size = ParseInt(byte_buffer);
 
+                int packet_size = ParseInt(byte_buffer);
                 if (packet_size > 0)
                 {
                     logger.Noise($"Packet Size: {packet_size}", DebugFlags.Downloading);
@@ -190,6 +189,7 @@ namespace BTProtocol.BitTorrent
                             throw new Exception("Unknown packet type");
                     }
                 }
+                
                 if (!(last_interested is null) &&
                      (DateTime.Now.Subtract(last_interested ??= DateTime.Now).Seconds > countdown))
                 {
@@ -236,25 +236,27 @@ namespace BTProtocol.BitTorrent
         {
             int piece_idx = ParseInt(byte_buffer, 1);
             peer.bitfield[piece_idx] = true;
-            if (torrent_data.piece_status[piece_idx] != 1)
+            // Piece is completed no need to enqueue for downloaded
+            if (torrent_data.piece_status[piece_idx] == 1)
             {
-                if (torrent_data.piece_status[piece_idx] == 0)
-                {
-                    peer.high_priority_pieces.Add(piece_idx);
-                }
-                else
-                {
-                    peer.low_priority_pieces.Add(piece_idx);
-                }
-
-                // If we were prevously not interested, set ourselves to interested and send out a piece request
-                // If we are currently interested, do not send out a peice request, we should be already attempting to download a piece
-                if (last_interested != null)
-                {
-                    last_interested = null;
-                    SendPieceRequest();
-                }      
+                return;
             }
+
+            if (torrent_data.piece_status[piece_idx] == 0)
+            {
+                peer.high_priority_pieces.Add(piece_idx);
+            }
+            else
+            {
+                peer.low_priority_pieces.Add(piece_idx);
+            }
+            // If we were prevously not interested, set ourselves to interested and send out a piece request
+            // If we are currently interested, do not send out a piece request, we should be already attempting to download a piece
+            if (last_interested != null)
+            {
+                last_interested = null;
+                SendPieceRequest();
+            }      
         }
 
         private void SendPieceRequest()
@@ -267,40 +269,31 @@ namespace BTProtocol.BitTorrent
             }
             file_manager.tf_lock.Release();
 
-            if (next_piece != -1)
-            {
-                curr_piece = new PieceData();
-                curr_piece.index = next_piece;
-                long piece_size;
-                if (next_piece == file_manager.piece_filemap.Length - 1)
-                {
-                    piece_size = torrent_data.torrent_size % file_manager.piece_size;
-                    if (piece_size == 0)
-                    {
-                        piece_size = file_manager.piece_size;
-                    }
-                }
-                else
-                {
-                    piece_size = file_manager.piece_size;
-                }
-                curr_piece.last_block_index = (int)Math.Ceiling(piece_size / (double) BLOCK_SIZE) - 1;
-                curr_piece.final_block_size = (int) piece_size % BLOCK_SIZE;
-                if (curr_piece.final_block_size == 0)
-                {
-                    curr_piece.final_block_size = BLOCK_SIZE;
-                }
-                curr_piece.piece_data = new byte[piece_size];
-                curr_piece.bytes_downloaded = 0;
-                for (int block = 0; block < curr_piece.last_block_index + 1; block++)
-                {
-                    SendBlockRequest(block);
-                }
-            }
-            else
+            // No remaining pieces available to be downloaded from this peer
+            if (next_piece == -1)
             {
                 last_interested = DateTime.Now;
                 countdown = 10;
+                return;
+            }
+
+            long piece_size = file_manager.GetPieceSize(next_piece);
+            curr_piece = new PieceData
+            {
+                index = next_piece,
+                last_block_index = (int) Math.Ceiling(piece_size / (double)BLOCK_SIZE) - 1,
+                final_block_size = (int) piece_size % BLOCK_SIZE,
+                piece_data = new byte[piece_size],
+                bytes_downloaded = 0
+            };
+            if (curr_piece.final_block_size == 0)
+            {
+                curr_piece.final_block_size = BLOCK_SIZE;
+            }
+
+            for (int block = 0; block < curr_piece.last_block_index + 1; block++)
+            {
+                SendBlockRequest(block);
             }
         }
 
@@ -330,7 +323,7 @@ namespace BTProtocol.BitTorrent
              *      - Begin
              *      - Block
              * Pass these variables to the FileManager, which will handle the write operation
-             * Send a Piece-Request to the peer, requesting for the next block of the peice
+             * Send a Piece-Request to the peer, requesting for the next block of the piece
              */
 
             int piece_idx = ParseInt(byte_buffer, 1);
@@ -352,25 +345,23 @@ namespace BTProtocol.BitTorrent
             // If the piece is incorrect, discard all data downloaded and choose a new piece to download
             if (curr_piece.bytes_downloaded == curr_piece.piece_data.Length)
             {
-                if (torrent_data.VerifyPiece(piece_idx, curr_piece.piece_data))
+                bool valid = torrent_data.VerifyPiece(piece_idx, curr_piece.piece_data);
+                file_manager.tf_lock.WaitOne();
+                if (valid)
                 {
-                    file_manager.tf_lock.WaitOne();
                     if (torrent_data.SetPieceStatus(piece_idx, 1))
                     {
                         logger.Debug("Piece Downloaded (" + torrent_data.torrent_name + "): " + piece_idx, DebugFlags.Downloading);
                         file_manager.WritePiece(piece_idx, curr_piece.piece_data);
                         torrent_data.bytes_downloaded += (uint)curr_piece.piece_data.Length;
                         logger.Info($"Progress: {(torrent_data.bytes_downloaded / (float)torrent_data.torrent_size)}");
-                        SerializeTFData(torrent_data);
                     }
-                    file_manager.tf_lock.Release();
                 }
                 else
                 {
-                    file_manager.tf_lock.WaitOne();
                     torrent_data.SetPieceStatus(piece_idx, 0);
-                    file_manager.tf_lock.Release();
                 }
+                file_manager.tf_lock.Release();
                 SendPieceRequest();
             }
         }

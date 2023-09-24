@@ -34,8 +34,8 @@ namespace BTProtocol.BitTorrent
             try
             { 
                 string torrent_name = ReceiveHandshakeSeeding();
-                torrent_data = MainProc.torrent_file_dict[torrent_name];
-                file_manager = MainProc.file_dict[torrent_name];
+                torrent_data = FriendTorrent.torrent_dict[torrent_name];
+                file_manager = FriendTorrent.file_dict[torrent_name];
                 SendHandshake();
                 SendBitField();
                 ReceivePackets();

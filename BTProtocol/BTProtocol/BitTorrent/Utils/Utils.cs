@@ -21,6 +21,7 @@ namespace BTProtocol.BitTorrent
         static BinaryFormatter serializer = new BinaryFormatter();
         public static string LOCAL_IP_ADDRESS = GetLocalIPAddress();
         public static string PUBLIC_IP_ADDRESS = GetPublicIPAddress();
+        public static int SEEDING_PORT = 6889;
 
         public static string UrlSafeStringInfohash(byte[] Infohash)
         {
@@ -88,12 +89,12 @@ namespace BTProtocol.BitTorrent
             return size_bytes;
         }
 
-        public static byte GetBitfieldByte(int[] peice_status, int pointer)
+        public static byte GetBitfieldByte(int[] piece_status, int pointer)
         {
             int value = 0;
-            for (int i = 0; i < 8 && pointer + i < peice_status.Length; i++)
+            for (int i = 0; i < 8 && pointer + i < piece_status.Length; i++)
             {
-                if (peice_status[pointer + i] == 1)
+                if (piece_status[pointer + i] == 1)
                 {
                     value += 1 << (7 - i);
                 }
@@ -117,7 +118,7 @@ namespace BTProtocol.BitTorrent
 
         public static void SerializeTFData(TFData file_data)
         {
-            Stream SaveFileStream = File.Create(MainProc.serialized_path + file_data.torrent_name);
+            Stream SaveFileStream = File.Create(FriendTorrent.serialized_path + file_data.torrent_name);
             serializer.Serialize(SaveFileStream, file_data);
             SaveFileStream.Close();
         }

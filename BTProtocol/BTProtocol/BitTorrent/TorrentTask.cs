@@ -67,7 +67,7 @@ namespace BTProtocol.BitTorrent
             message[0] = 19;
             Buffer.BlockCopy(Encoding.UTF8.GetBytes("BitTorrent protocol"), 0, message, 1, 19);
             Buffer.BlockCopy(torrent_data.info_hash, 0, message, 28, 20);
-            Buffer.BlockCopy(Encoding.UTF8.GetBytes(MainProc.peerid), 0, message, 48, 20);
+            Buffer.BlockCopy(Encoding.UTF8.GetBytes(FriendTorrent.peerid), 0, message, 48, 20);
 
             peer.GetStream().Write(message, 0, message.Length);
         }
@@ -112,7 +112,7 @@ namespace BTProtocol.BitTorrent
             byte[] peer_hash = bytes.Skip(28).Take(20).ToArray();
 
             // Check that the peer_hash matches the info_hash of one of our torrents
-            foreach (TFData tfdata in MainProc.torrent_file_dict.Values)
+            foreach (TFData tfdata in FriendTorrent.torrent_dict.Values)
             {
                 if (peer_hash.SequenceEqual(tfdata.info_hash))
                 {
@@ -120,7 +120,7 @@ namespace BTProtocol.BitTorrent
                 }
             }
 
-            throw new Exception("Invalid handshake, peer returned a different info_hash");
+            throw new Exception("Invalid handshake, peer returned an unrecognized info_hash");
         }
 
         public void ReceiveRequest(byte[] byte_buffer)
@@ -130,7 +130,7 @@ namespace BTProtocol.BitTorrent
             int piece_offset = ParseInt(byte_buffer, 5);
             int block_length = ParseInt(byte_buffer, 9);
 
-            // Check that we have this peice fully downloaded
+            // Check that we have this piece fully downloaded
             if (torrent_data.piece_status[piece_index] != 1)
             {
                 return;

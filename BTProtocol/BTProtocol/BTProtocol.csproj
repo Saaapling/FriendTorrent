@@ -85,24 +85,27 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BitTorrent\DownloadingThreadManager.cs" />
+    <Compile Include="BitTorrent\FriendTorrent.cs" />
     <Compile Include="BitTorrent\SeedingTask.cs" />
     <Compile Include="BitTorrent\SeedingThreadManager.cs" />
     <Compile Include="BitTorrent\TorrentTask.cs" />
     <Compile Include="BitTorrent\DownloadingTask.cs" />
-    <Compile Include="BitTorrent\MainProc.cs" />
     <Compile Include="BitTorrent\Peer.cs" />
     <Compile Include="BitTorrent\TFData.cs" />
     <Compile Include="BitTorrent\TrackerManager.cs" />
     <Compile Include="BitTorrent\FileManager.cs" />
     <Compile Include="BitTorrent\Utils\Logger.cs" />
     <Compile Include="BitTorrent\Utils\Utils.cs" />
+    <Compile Include="ConsoleApplication\CommandConsole.cs" />
     <Compile Include="Samples\AsyncTaskTest.cs" />
-    <Compile Include="Samples\Deprecated\FileManagerOld.cs" />
     <Compile Include="Samples\SampleCode.cs" />
     <Compile Include="Samples\TorrentAnnounceTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="..\.editorconfig">
+      <Link>.editorconfig</Link>
+    </None>
     <None Include="App.config" />
     <None Include="packages.config" />
     <None Include="Resources\Archived Torrents\ex-arm.torrent" />
@@ -123,6 +126,7 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="Samples\Deprecated\" />
     <Folder Include="TorrentDownloads\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -15,6 +15,35 @@
 	* [Todo] Command arguments, reconfigure where resources are added/downloaded
 
 
+### Console Application Planning
+	* Add flags
+		- Debug
+		- Mode [Seeding,Downloading,All]
+		- Path
+	* BTProtocol.exe [Console Application Options]
+		* Add TorrentFile
+			- Ex. > C:\Downloads|	
+			- Adds torrent file from path given to path specified at the start of the executable 
+		* Available Torrents
+		* Queue Torrents for Install [Default = All]
+			* exarm
+			* centos
+			* myreallynamefile.txt
+			* All
+		* Start
+		* Paused/Stopped
+		* Exit
+
+	* Work Needed
+		- Design console code
+			- Design coommand args
+		- Add Interrupts
+			- Stopping specific torrents
+			++ Add Have sendting
+		- Redesign how 'main' function interacts with other classes
+			- Ex. Downloading Queue popualted by 'main' class / console
+		- On application startup, confirm that torrents / downloaded data is accurate
+		
 ### UI Plannning:
 	* ???????
 	
@@ -26,6 +55,7 @@
 			* Manual hash calculation + check serialized file
 		* Todo notify others Cancel to if they are downloading the same piece (useful in 'endgame')
 		* Send out 'haves' if we have downloaded a peice
+			* AKKA Actors for broadcasting 'haves' to other tasks.
 		
 		* Integration with friend viewer co. ping Shio
 
