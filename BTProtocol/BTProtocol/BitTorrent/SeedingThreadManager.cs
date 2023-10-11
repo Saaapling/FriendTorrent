@@ -49,6 +49,7 @@ namespace BTProtocol.BitTorrent
                 tc++;
                 logger.Info($"Starting new Seeding Task: {tc}");
                 Task t = new Task(() => task.StartTask());
+                TorrentTask.SubscribeNewTask(task);
                 t.Start();
 
                 main_semaphore.WaitOne();

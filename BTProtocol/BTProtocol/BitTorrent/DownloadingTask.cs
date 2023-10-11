@@ -26,8 +26,8 @@ namespace BTProtocol.BitTorrent
 
         protected override private void ExitThread()
         {
+            base.ExitThread();
             thread_pool.Release();
-            logger.Info("Exiting Task");
             if (client.Connected)
             {
                 torrent_data.connected_peers.Remove((peer.ip, peer.port));

@@ -12,8 +12,8 @@ namespace BTProtocol.BitTorrent
     {
         protected override private void ExitThread()
         {
+            base.ExitThread();
             thread_pool.Release();
-            logger.Info("Exiting Task");
         }
 
         public SeedingTask(Peer peer)
