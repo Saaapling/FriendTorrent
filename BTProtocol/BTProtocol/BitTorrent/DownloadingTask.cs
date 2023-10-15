@@ -26,8 +26,8 @@ namespace BTProtocol.BitTorrent
 
         protected override private void ExitThread()
         {
+            base.ExitThread();
             thread_pool.Release();
-            logger.Info("Exiting Task");
             if (client.Connected)
             {
                 torrent_data.connected_peers.Remove((peer.ip, peer.port));
@@ -41,7 +41,7 @@ namespace BTProtocol.BitTorrent
             this.file_manager.Initialize(FileAccess.ReadWrite);
         }
 
-        public void StartTask()
+        public override void StartTask()
         {
             /*
              * Downloading Task initialization steps:
@@ -50,6 +50,7 @@ namespace BTProtocol.BitTorrent
              *      - Connect to the peer and start downloading, or exit the Task if no peers are avaiable
              */
 
+            base.StartTask();
             // Call Wait to decrement the count of available threads.
             thread_pool.Wait();
             // Release the lock on downloading manager so it can continue execution.
