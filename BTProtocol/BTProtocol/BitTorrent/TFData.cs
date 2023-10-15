@@ -114,7 +114,7 @@ namespace BTProtocol.BitTorrent
 
         public bool VerifyPiece(int index, byte[] data)
         {
-            using (SHA1Managed sha1 = new SHA1Managed())
+            using (SHA1 sha1 = SHA1.Create())
             {
                 byte[] hash = sha1.ComputeHash(data);
                 return hash.SequenceEqual(piece_hash[index]);

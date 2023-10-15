@@ -10,6 +10,11 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using static BTProtocol.BitTorrent.Logger;
 
+
+using System.Runtime.Serialization;
+using System.Xml;
+using System.Net.Http;
+
 namespace BTProtocol.BitTorrent
 {
     internal static class Utils
@@ -118,15 +123,18 @@ namespace BTProtocol.BitTorrent
 
         public static void SerializeTFData(TFData file_data)
         {
-            Stream SaveFileStream = File.Create(FriendTorrent.serialized_path + file_data.torrent_name);
-            serializer.Serialize(SaveFileStream, file_data);
-            SaveFileStream.Close();
+            DataContractSerializer serializer = new DataContractSerializer(typeof(TFData));
+            FileStream writer = new FileStream(FriendTorrent.serialized_path + file_data.torrent_name, FileMode.Create);
+            serializer.WriteObject(writer, file_data);
+            writer.Close();
         }
 
         public static TFData DeserializeTFData(string file_path)
         {
-            Stream openFileStream = File.OpenRead(file_path);
-            TFData file_data = (TFData)serializer.Deserialize(openFileStream);
+            DataContractSerializer serializer = new DataContractSerializer(typeof(TFData));
+            FileStream openFileStream = new FileStream(file_path, FileMode.Open);
+            XmlDictionaryReader reader = XmlDictionaryReader.CreateTextReader(openFileStream, new XmlDictionaryReaderQuotas());
+            TFData file_data = (TFData)serializer.ReadObject(reader, true);
             file_data.ResetStatus();
             return file_data;
         }
@@ -154,13 +162,9 @@ namespace BTProtocol.BitTorrent
 
         private static string GetPublicIPAddress()
         {
-            string address = "";
-            WebRequest request = WebRequest.Create("http://checkip.dyndns.org/");
-            using (WebResponse response = request.GetResponse())
-            using (StreamReader stream = new StreamReader(response.GetResponseStream()))
-            {
-                address = stream.ReadToEnd();
-            }
+            HttpClient client = new HttpClient();
+            HttpResponseMessage response = client.GetAsync("http://checkip.dyndns.org/").Result;
+            string address = response.Content.ReadAsStringAsync().Result;
 
             int first = address.IndexOf("Address: ") + 9;
             int last = address.LastIndexOf("</body>");

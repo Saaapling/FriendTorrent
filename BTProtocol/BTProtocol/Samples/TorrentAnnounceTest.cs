@@ -61,14 +61,13 @@ namespace BTProtocol
 
             Console.WriteLine(sb.ToString());
 
-            HttpWebRequest HttpWReq = (HttpWebRequest)WebRequest.Create(sb.ToString());
-            HttpWebResponse HttpWResp = (HttpWebResponse)HttpWReq.GetResponse();
-
             byte[] data;
-            using (Stream stream = HttpWResp.GetResponseStream())
+            HttpClient client = new HttpClient();
+            HttpResponseMessage response = client.GetAsync(sb.ToString()).Result;
+            using (Stream stream = response.Content.ReadAsStream())
             {
-                data = new byte[HttpWResp.ContentLength];
-                stream.Read(data, 0, Convert.ToInt32(HttpWResp.ContentLength));
+                data = new byte[stream.Length];
+                stream.Read(data, 0, Convert.ToInt32(stream.Length));
             }
 
             BDictionary tracker_dict = parser.Parse<BDictionary>(data);

@@ -1,16 +1,18 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.CommandLine;
+using System.CommandLine.Invocation;
 
 namespace BTProtocol.ConsoleApplication
 {
     internal class CommandConsole
     {
-        static void Main(string[] args)
+
+    public static void Main(string input, string output, int x = 0, int y = 0)
         {
-            Console.WriteLine("a");
+            Console.WriteLine(input);
+            Console.WriteLine(output);
+            Console.WriteLine(x);
+            Console.WriteLine(y);
         }
     }
 }

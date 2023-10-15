@@ -96,6 +96,7 @@ namespace BTProtocol
 
                 // Add remaining files as TFiles for last piece
                 offset = i * piece_size;
+                piece_filemap[i] = new List<TFile>();
                 while (curr < file_count)
                 {
                     TFile file = new TFile(curr, filestreams[curr], Math.Max(0, offset - total_offsets[curr]));

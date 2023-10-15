@@ -28,7 +28,7 @@ namespace BTProtocol.BitTorrent
         {
             thread_pool.Release();
             logger.Info("Exiting Task");
-            if (client.Connected)
+            if (client != null && client.Connected)
             {
                 torrent_data.connected_peers.Remove((peer.ip, peer.port));
             }
