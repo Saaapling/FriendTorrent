@@ -5,6 +5,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
+using System.Threading;
+
 using static BTProtocol.BitTorrent.Utils;
 using static BTProtocol.BitTorrent.MessageType;
 
@@ -12,6 +14,9 @@ namespace BTProtocol.BitTorrent
 {
     public abstract class TorrentTask
     {
+        // Global lock for creating tasks.
+        public static Semaphore main_semaphore;
+
         private static List<TorrentTask> tasks = new List<TorrentTask>();
         protected TFData torrent_data;
         protected FileManager file_manager;
@@ -23,6 +28,12 @@ namespace BTProtocol.BitTorrent
         {
             tasks.Remove(this);
             logger.Info("Exiting Task");
+        }
+
+        public virtual void StartTask()
+        {
+            SubscribeNewTask(this);
+            tasks.Add(this);
         }
 
         // msg_ids: choke-0, unchoke-1, interested-2, not interested-3
@@ -177,9 +188,8 @@ namespace BTProtocol.BitTorrent
             else if (e is HaveEvent)
             {
                 HaveEvent have_msg = (HaveEvent)e;
-                // Send haves if we are an instance of seeding task and our name matches
-                if (have_msg.name == torrent_data.torrent_name &&
-                    this is SeedingTask)
+                // Send haves if our name matches
+                if (have_msg.name == torrent_data.torrent_name)
                 {
                     logger.Debug($"Piece {have_msg.piece_index}");
                     //SendHave();
@@ -192,6 +202,8 @@ namespace BTProtocol.BitTorrent
             foreach (TorrentTask torrent_task in tasks)
             {
                 torrent_task.BroadcastHandler += task.Handler;
+                task.BroadcastHandler         += torrent_task.Handler;
+
             }
         }
         public event EventHandler<TorrentEventArgs> BroadcastHandler;

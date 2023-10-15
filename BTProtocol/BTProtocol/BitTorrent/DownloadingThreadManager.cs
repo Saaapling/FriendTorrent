@@ -3,12 +3,12 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using static BTProtocol.BitTorrent.Utils;
+using static BTProtocol.BitTorrent.TorrentTask;
 
 namespace BTProtocol.BitTorrent
 {
     internal class DownloadingThreadManager
     {
-        public static Semaphore main_semaphore;
         public static SemaphoreSlim thread_pool;
         private Queue<string> download_queue;
 
@@ -82,7 +82,6 @@ namespace BTProtocol.BitTorrent
                 tc++;
                 logger.Info($"Starting new Downloading Task: {tc}");
                 Task t = new Task(() => task.StartTask());
-                TorrentTask.SubscribeNewTask(task);
                 t.Start();
 
                 main_semaphore.WaitOne();

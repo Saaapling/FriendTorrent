@@ -41,7 +41,7 @@ namespace BTProtocol.BitTorrent
             this.file_manager.Initialize(FileAccess.ReadWrite);
         }
 
-        public void StartTask()
+        public override void StartTask()
         {
             /*
              * Downloading Task initialization steps:
@@ -54,6 +54,7 @@ namespace BTProtocol.BitTorrent
             thread_pool.Wait();
             // Release the lock on downloading manager so it can continue execution.
             main_semaphore.Release();
+            base.StartTask();
 
             // Check the TFData to see if there are pieces that stll need to be downloaded. 
             while (!torrent_data.CheckDownloadStatus())
