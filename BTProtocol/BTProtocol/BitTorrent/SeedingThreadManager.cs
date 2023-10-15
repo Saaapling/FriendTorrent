@@ -6,22 +6,20 @@ using System.Threading.Tasks;
 
 using static BTProtocol.BitTorrent.Utils;
 using static BTProtocol.BitTorrent.Logger;
+using static BTProtocol.BitTorrent.TorrentTask;
+
 
 namespace BTProtocol.BitTorrent
 {
     internal class SeedingThreadManager
     {
-        public static Semaphore main_semaphore;
         public static SemaphoreSlim thread_pool;
         private TcpListener listener;
         private const int port = 6889;
 
         public SeedingThreadManager(int threadcount)
         {
-            main_semaphore = new Semaphore(1, 1);
             thread_pool = new SemaphoreSlim(threadcount, threadcount);
-            main_semaphore.WaitOne();
-            thread_pool.Wait();
         }
 
 
@@ -36,6 +34,9 @@ namespace BTProtocol.BitTorrent
             int tc = 0;
             while (true)
             {
+                main_semaphore.WaitOne();
+                thread_pool.Wait();
+
                 // Accept an Incoming connection
                 Peer peer = AcceptConnections();
                 if (peer == null)

@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+
+using System.Threading;
 
 using static BTProtocol.BitTorrent.Utils;
 using static BTProtocol.BitTorrent.MessageType;
@@ -11,34 +14,48 @@ namespace BTProtocol.BitTorrent
 {
     public abstract class TorrentTask
     {
+        // Global lock for creating tasks.
+        public static Semaphore main_semaphore = new Semaphore(1, 1);
+
+        private static List<TorrentTask> tasks = new List<TorrentTask>();
         protected TFData torrent_data;
         protected FileManager file_manager;
         protected Peer peer;
         protected DateTime? last_interested = null;
         protected int countdown;
 
-        protected abstract private void ExitThread();
+        protected virtual private void ExitThread()
+        {
+            tasks.Remove(this);
+            logger.Info("Exiting Task");
+        }
+
+        public virtual void StartTask()
+        {
+            SubscribeNewTask(this);
+            tasks.Add(this);
+        }
 
         // msg_ids: choke-0, unchoke-1, interested-2, not interested-3
         public void SendBitMessageType(MessageType msg_id)
         {
             MemoryStream byteStream = new MemoryStream();
             byteStream.Write(Int32ToByteArray(1), 0, 4);
-            byteStream.WriteByte((byte) msg_id);
-            peer.GetStream().Write(byteStream.ToArray(), 0, (int) byteStream.Length);
+            byteStream.WriteByte((byte)msg_id);
+            peer.GetStream().Write(byteStream.ToArray(), 0, (int)byteStream.Length);
         }
 
         public void SendBitField()
         {
             MemoryStream byteStream = new MemoryStream();
-            int size = (int) Math.Ceiling(torrent_data.piece_status.Length / 8d) + 1;
+            int size = (int)Math.Ceiling(torrent_data.piece_status.Length / 8d) + 1;
             byteStream.Write(Int32ToByteArray(size), 0, 4);
-            byteStream.WriteByte((byte) Bitfield);
+            byteStream.WriteByte((byte)Bitfield);
             for (int i = 0; i < size - 1; i++)
             {
                 byteStream.WriteByte(GetBitfieldByte(torrent_data.piece_status, i));
             }
-            peer.GetStream().Write(byteStream.ToArray(), 0, size+4);
+            peer.GetStream().Write(byteStream.ToArray(), 0, size + 4);
         }
 
         public void SetPeerBitField(byte[] byte_buffer)
@@ -151,5 +168,58 @@ namespace BTProtocol.BitTorrent
             byte[] message = byteStream.ToArray();
             peer.GetStream().Write(message, 0, message.Length);
         }
+
+        protected virtual void BroadcastHave(int piece_idx)
+        {
+            logger.Debug($"Broadcasting {piece_idx}");
+            BroadcastHandler?.Invoke(this, new HaveEvent{ piece_index = piece_idx });
+        }
+        private void Handler(object sender, TorrentEventArgs e)
+        {
+            if (e is TorrentEvent)
+            {
+                var torr_msg = (TorrentEvent)e;
+                // Exit if our name match
+                if (torr_msg.name == torrent_data.torrent_name && torr_msg.exit)
+                {
+                    ExitThread();
+                }
+            }
+            else if (e is HaveEvent)
+            {
+                HaveEvent have_msg = (HaveEvent)e;
+                // Send haves if our name matches
+                if (have_msg.name == torrent_data.torrent_name)
+                {
+                    logger.Debug($"Piece {have_msg.piece_index}");
+                    //SendHave();
+                }
+            }
+        }
+
+        public static void SubscribeNewTask(TorrentTask task)
+        {
+            foreach (TorrentTask torrent_task in tasks)
+            {
+                torrent_task.BroadcastHandler += task.Handler;
+                task.BroadcastHandler         += torrent_task.Handler;
+
+            }
+        }
+        public event EventHandler<TorrentEventArgs> BroadcastHandler;
+        
+    }
+
+    public class TorrentEventArgs : EventArgs
+    {
+        public string name { get; set; }
+    }
+    public class HaveEvent : TorrentEventArgs 
+    {
+        public int piece_index { get; set; }
+    }
+    public class TorrentEvent : TorrentEventArgs
+    {
+        public bool exit { get; set; }
     }
 }
