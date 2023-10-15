@@ -19,10 +19,7 @@ namespace BTProtocol.BitTorrent
 
         public SeedingThreadManager(int threadcount)
         {
-            main_semaphore = new Semaphore(1, 1);
             thread_pool = new SemaphoreSlim(threadcount, threadcount);
-            main_semaphore.WaitOne();
-            thread_pool.Wait();
         }
 
 
@@ -37,6 +34,8 @@ namespace BTProtocol.BitTorrent
             int tc = 0;
             while (true)
             {
+                main_semaphore.WaitOne();
+                thread_pool.Wait();
                 // Accept an Incoming connection
                 Peer peer = AcceptConnections();
                 if (peer == null)

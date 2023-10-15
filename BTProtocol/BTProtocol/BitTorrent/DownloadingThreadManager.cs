@@ -14,10 +14,7 @@ namespace BTProtocol.BitTorrent
 
         public DownloadingThreadManager(int threadcount)
         {
-            main_semaphore = new Semaphore(1, 1);
             thread_pool = new SemaphoreSlim(threadcount, threadcount);
-            main_semaphore.WaitOne();
-            thread_pool.Wait();
         }
 
         private TFData CheckTorrentStatus()
@@ -68,6 +65,8 @@ namespace BTProtocol.BitTorrent
             int tc = 0;
             while (download_queue.Count > 0)
             {
+                main_semaphore.WaitOne();
+                thread_pool.Wait();
                 TFData curr_tfdata = GetNextTorrent();
                 if (curr_tfdata == null)
                 {

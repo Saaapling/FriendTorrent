@@ -15,7 +15,7 @@ namespace BTProtocol.BitTorrent
     public abstract class TorrentTask
     {
         // Global lock for creating tasks.
-        public static Semaphore main_semaphore;
+        public static Semaphore main_semaphore = new Semaphore(1, 1);
 
         private static List<TorrentTask> tasks = new List<TorrentTask>();
         protected TFData torrent_data;
