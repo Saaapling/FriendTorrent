@@ -67,6 +67,7 @@ namespace BTProtocol.BitTorrent
             {
                 main_semaphore.WaitOne();
                 thread_pool.Wait();
+
                 TFData curr_tfdata = GetNextTorrent();
                 if (curr_tfdata == null)
                 {

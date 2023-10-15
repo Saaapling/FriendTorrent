@@ -27,11 +27,11 @@ namespace BTProtocol.BitTorrent
 
         public override void StartTask()
         {
+            base.StartTask();
             // Call Wait to decrement the count of available threads.
             thread_pool.Wait();
             // Release the lock on main so it can continue execution.
             main_semaphore.Release();
-            base.StartTask();
 
             try
             { 

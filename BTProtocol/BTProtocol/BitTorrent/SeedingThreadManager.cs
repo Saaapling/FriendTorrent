@@ -36,6 +36,7 @@ namespace BTProtocol.BitTorrent
             {
                 main_semaphore.WaitOne();
                 thread_pool.Wait();
+
                 // Accept an Incoming connection
                 Peer peer = AcceptConnections();
                 if (peer == null)
