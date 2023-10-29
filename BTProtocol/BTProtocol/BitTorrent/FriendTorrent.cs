@@ -113,7 +113,7 @@ namespace BTProtocol.BitTorrent
             // Create thread-pools for downloading and uploading (25 down, 5 up)
             SeedingThreadManager seeding_task = new SeedingThreadManager(5);
             Task seeding_manager = new Task(() => seeding_task.StartSeeding());
-            seeding_manager.Start();
+            //seeding_manager.Start();
 
             DownloadingThreadManager downloading_task = new DownloadingThreadManager(25);
             Task download_manager = new Task(() => downloading_task.StartDownloads());

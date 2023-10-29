@@ -155,9 +155,9 @@ namespace BTProtocol.BitTorrent
             try
             {
                 // Unsure if flushing the socket is needed
-                FlushUdpSocket(udp_client, tracker_ip);
+                udp_client.Client.ReceiveTimeout = 2000;
+                //FlushUdpSocket(udp_client, tracker_ip);
                 udp_client.Send(message, message.Length);
-                udp_client.Client.ReceiveTimeout = 5000;
                 return udp_client.Receive(ref tracker_ip);
             }
             catch (SocketException)

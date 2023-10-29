@@ -13,7 +13,6 @@ namespace BTProtocol.BitTorrent
 
     sealed internal class DownloadingTask : TorrentTask
     {
-        TcpClient client;
         public struct PieceData
         {
             public int index;
@@ -28,8 +27,8 @@ namespace BTProtocol.BitTorrent
         {
             base.ExitThread();
             thread_pool.Release();
-            logger.Info("Exiting Task");
-            if (client != null && client.Connected)
+            logger.Info("Exiting Downloading Task");
+            if (peer != null && peer.Connected())
             {
                 torrent_data.connected_peers.Remove((peer.ip, peer.port));
             }
@@ -51,16 +50,16 @@ namespace BTProtocol.BitTorrent
              *      - Connect to the peer and start downloading, or exit the Task if no peers are avaiable
              */
 
-            base.StartTask();
             // Call Wait to decrement the count of available threads.
             thread_pool.Wait();
+            base.StartTask();
             // Release the lock on downloading manager so it can continue execution.
             main_semaphore.Release();
 
             // Check the TFData to see if there are pieces that stll need to be downloaded. 
             while (!torrent_data.CheckDownloadStatus())
             {
-                while (client == null || !client.Connected)
+                while (peer == null || !peer.Connected())
                 {
                     Tuple<string, int> peer_addr = FindAvailablePeer();
                     if (peer_addr != null)
@@ -81,7 +80,7 @@ namespace BTProtocol.BitTorrent
                 }
                 catch (Exception e)
                 {
-                    client = null;
+                    peer = null;
                     logger.Error(e.Message);
                 }
             }
@@ -91,13 +90,20 @@ namespace BTProtocol.BitTorrent
 
         private Tuple<string, int> FindAvailablePeer()
         {
+            // We have already exhausted the peer list
+            if (torrent_data.peer_list_indx >= torrent_data.peer_list.Count)
+            {
+                return null;
+            }
             string ip;
             int port;
             do
             {
                 int idx = Interlocked.Increment(ref torrent_data.peer_list_indx) - 1;
+                // Prevent a race condition
                 if (idx >= torrent_data.peer_list.Count)
                 {
+                    torrent_data.peer_list_indx = torrent_data.peer_list.Count;
                     return null;
                 }
                 ip = torrent_data.peer_list[idx].Item1;
@@ -111,12 +117,12 @@ namespace BTProtocol.BitTorrent
         {
             string ipaddr = address.Item1;
             int port = address.Item2;
-            logger.Debug($"Initiating Connection: {ipaddr}:{port}", DebugFlags.Downloading);
+            logger.Noise($"Initiating Connection: {ipaddr}:{port}", DebugFlags.Downloading);
 
-            client = new TcpClient();
+            TcpClient client = new TcpClient();
             if (client.ConnectAsync(ipaddr, port).Wait(500))
             {
-                logger.Debug($"Connection Successful: {ipaddr}:{port}", DebugFlags.Downloading);
+                logger.Noise($"Connection Successful: {ipaddr}:{port}", DebugFlags.Downloading);
                 peer = new Peer(client, torrent_data.piece_status.Length, torrent_data.torrent_name);
                 peer.GetStream().ReadTimeout = 5000;
                 peer.GetStream().Flush();
@@ -195,7 +201,7 @@ namespace BTProtocol.BitTorrent
                 if (!(last_interested is null) &&
                      (DateTime.Now.Subtract(last_interested ??= DateTime.Now).Seconds > countdown))
                 {
-                    client.Close();
+                    peer.Close();
                     break;
                 }
             }
@@ -356,6 +362,8 @@ namespace BTProtocol.BitTorrent
                         logger.Debug("Piece Downloaded (" + torrent_data.torrent_name + "): " + piece_idx, DebugFlags.Downloading);
                         file_manager.WritePiece(piece_idx, curr_piece.piece_data);
                         torrent_data.bytes_downloaded += (uint)curr_piece.piece_data.Length;
+                        SerializeTFData(torrent_data);
+                        BroadcastHave(piece_idx);
                         logger.Info($"Progress: {(torrent_data.bytes_downloaded / (float)torrent_data.torrent_size)}");
                     }
                 }

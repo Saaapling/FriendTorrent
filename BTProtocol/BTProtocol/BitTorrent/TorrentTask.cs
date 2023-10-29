@@ -9,14 +9,29 @@ using System.Threading;
 
 using static BTProtocol.BitTorrent.Utils;
 using static BTProtocol.BitTorrent.MessageType;
+using System.Threading.Tasks;
 
 namespace BTProtocol.BitTorrent
 {
+    public class TorrentEventArgs : EventArgs
+    {
+        public string name { get; set; }
+    }
+    public class HaveEvent : TorrentEventArgs
+    {
+        public int piece_index { get; set; }
+    }
+    public class StopEvent : TorrentEventArgs
+    {
+        public bool exit { get; set; }
+    }
+
     public abstract class TorrentTask
     {
         // Global lock for creating tasks.
         public static Semaphore main_semaphore = new Semaphore(1, 1);
 
+        public event EventHandler<TorrentEventArgs> BroadcastHandler;
         private static List<TorrentTask> tasks = new List<TorrentTask>();
         protected TFData torrent_data;
         protected FileManager file_manager;
@@ -26,8 +41,9 @@ namespace BTProtocol.BitTorrent
 
         protected virtual private void ExitThread()
         {
+            main_semaphore.WaitOne();
             tasks.Remove(this);
-            logger.Info("Exiting Task");
+            main_semaphore.Release();
         }
 
         public virtual void StartTask()
@@ -75,6 +91,15 @@ namespace BTProtocol.BitTorrent
                     peer.bitfield[i] = true;
                 }
             }
+        }
+
+        public void SendHave(int piece_idx)
+        {
+            MemoryStream byteStream = new MemoryStream();
+            byteStream.Write(Int32ToByteArray(5), 0, 4);
+            byteStream.WriteByte((byte)Have);
+            byteStream.Write(Int32ToByteArray(piece_idx), 0, 4);
+            peer.GetStream().Write(byteStream.ToArray(), 0, (int)byteStream.Length);
         }
 
         public void SendHandshake()
@@ -172,28 +197,35 @@ namespace BTProtocol.BitTorrent
         protected virtual void BroadcastHave(int piece_idx)
         {
             logger.Debug($"Broadcasting {piece_idx}");
-            BroadcastHandler?.Invoke(this, new HaveEvent{ piece_index = piece_idx });
+            BroadcastHandler?.Invoke(this, new HaveEvent{ name = torrent_data.torrent_name, piece_index = piece_idx });
         }
-        private void Handler(object sender, TorrentEventArgs e)
+
+        private async void Handler(object sender, TorrentEventArgs e)
         {
-            if (e is TorrentEvent)
+            //★★★★★
+            switch (e)
             {
-                var torr_msg = (TorrentEvent)e;
-                // Exit if our name match
-                if (torr_msg.name == torrent_data.torrent_name && torr_msg.exit)
-                {
-                    ExitThread();
-                }
-            }
-            else if (e is HaveEvent)
-            {
-                HaveEvent have_msg = (HaveEvent)e;
-                // Send haves if our name matches
-                if (have_msg.name == torrent_data.torrent_name)
-                {
-                    logger.Debug($"Piece {have_msg.piece_index}");
-                    //SendHave();
-                }
+                case StopEvent task_event:
+                    // Exit if our name match
+                    if (task_event.name == torrent_data.torrent_name && task_event.exit)
+                    {
+                        ExitThread();
+                    }
+                    break;
+                case HaveEvent task_event:
+                    // Send haves if our name matches and we are conected to a peer
+                    if (task_event.name == torrent_data.torrent_name && !(peer is null))
+                    {
+                        logger.Debug($"Sending Have: Piece {task_event.piece_index}");
+                        try
+                        {
+                            await Task.Run(() => SendHave(task_event.piece_index));
+                        }
+                        catch (NullReferenceException) { }
+                    }
+                    break;
+                default:
+                    break;
             }
         }
 
@@ -203,23 +235,7 @@ namespace BTProtocol.BitTorrent
             {
                 torrent_task.BroadcastHandler += task.Handler;
                 task.BroadcastHandler         += torrent_task.Handler;
-
             }
-        }
-        public event EventHandler<TorrentEventArgs> BroadcastHandler;
-        
-    }
-
-    public class TorrentEventArgs : EventArgs
-    {
-        public string name { get; set; }
-    }
-    public class HaveEvent : TorrentEventArgs 
-    {
-        public int piece_index { get; set; }
-    }
-    public class TorrentEvent : TorrentEventArgs
-    {
-        public bool exit { get; set; }
+        }        
     }
 }

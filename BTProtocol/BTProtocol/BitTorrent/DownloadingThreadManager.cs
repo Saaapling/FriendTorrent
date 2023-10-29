@@ -65,12 +65,14 @@ namespace BTProtocol.BitTorrent
             int tc = 0;
             while (download_queue.Count > 0)
             {
-                main_semaphore.WaitOne();
                 thread_pool.Wait();
+                main_semaphore.WaitOne();
 
                 TFData curr_tfdata = GetNextTorrent();
                 if (curr_tfdata == null)
                 {
+                    main_semaphore.Release();
+                    thread_pool.Release();
                     return;
                 }
 
@@ -83,9 +85,6 @@ namespace BTProtocol.BitTorrent
                 logger.Info($"Starting new Downloading Task: {tc}");
                 Task t = new Task(() => task.StartTask());
                 t.Start();
-
-                main_semaphore.WaitOne();
-                thread_pool.Wait();
             }
 
             logger.Critical("Downloading Manager Exited");

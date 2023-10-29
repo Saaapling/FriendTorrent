@@ -21,7 +21,7 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject>BTProtocol.ConsoleApplication.CommandConsole</StartupObject>
+    <StartupObject>BTProtocol.BitTorrent.FriendTorrent</StartupObject>
     <AssemblyTitle>BTProtocol</AssemblyTitle>
     <Product>BTProtocol</Product>
     <Copyright>Copyright ©  2022</Copyright>

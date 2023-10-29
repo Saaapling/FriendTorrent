@@ -19,7 +19,7 @@ namespace BTProtocol.BitTorrent
 {
     internal static class Utils
     {
-        public static Logger logger = new Logger(LoggingLevel.Info, (int) DebugFlags.All);
+        public static Logger logger = new Logger(LoggingLevel.Debug, (int) DebugFlags.All);
 
         public static BencodeParser parser = new BencodeParser();
         public const int BLOCK_SIZE = 16384; //2^14
@@ -136,6 +136,7 @@ namespace BTProtocol.BitTorrent
             XmlDictionaryReader reader = XmlDictionaryReader.CreateTextReader(openFileStream, new XmlDictionaryReaderQuotas());
             TFData file_data = (TFData)serializer.ReadObject(reader, true);
             file_data.ResetStatus();
+            openFileStream.Close();
             return file_data;
         }
 
@@ -169,6 +170,8 @@ namespace BTProtocol.BitTorrent
             int first = address.IndexOf("Address: ") + 9;
             int last = address.LastIndexOf("</body>");
             address = address.Substring(first, last - first);
+            logger.Info($"Public IP Address: {address}");
+            //address = "173.67.0.40"
 
             return address;
         }

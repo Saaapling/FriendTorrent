@@ -34,16 +34,16 @@ namespace BTProtocol.BitTorrent
             int tc = 0;
             while (true)
             {
-                main_semaphore.WaitOne();
                 thread_pool.Wait();
-
                 // Accept an Incoming connection
                 Peer peer = AcceptConnections();
                 if (peer == null)
                 {
+                    thread_pool.Release();
                     continue;
                 }
 
+                main_semaphore.WaitOne();
                 SeedingTask task = new SeedingTask(peer);
                 thread_pool.Release();
 
@@ -51,9 +51,6 @@ namespace BTProtocol.BitTorrent
                 logger.Info($"Starting new Seeding Task: {tc}");
                 Task t = new Task(() => task.StartTask());
                 t.Start();
-
-                main_semaphore.WaitOne();
-                thread_pool.Wait();
             }
         }
 
