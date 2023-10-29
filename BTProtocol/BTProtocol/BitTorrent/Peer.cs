@@ -59,12 +59,17 @@ namespace BTProtocol.BitTorrent
 
         public bool Connected() 
         {
-            return client.Client.Connected;
+            return client.Connected;
         }
 
         public NetworkStream GetStream() 
         {
             return client.GetStream();
+        }
+
+        public void Close()
+        {
+            client.Close();
         }
 
         public int GetNextPiece(TFData torrent_data)

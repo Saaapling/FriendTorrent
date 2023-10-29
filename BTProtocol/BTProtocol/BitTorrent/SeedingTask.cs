@@ -12,8 +12,9 @@ namespace BTProtocol.BitTorrent
     {
         protected override private void ExitThread()
         {
+            base.ExitThread();
             thread_pool.Release();
-            logger.Info("Exiting Task");
+            logger.Info("Exiting Seeding Task");
         }
 
         public SeedingTask(Peer peer)
@@ -25,17 +26,19 @@ namespace BTProtocol.BitTorrent
             countdown = 300;
         }
 
-        public void StartTask()
+        public override void StartTask()
         {
             // Call Wait to decrement the count of available threads.
             thread_pool.Wait();
+            base.StartTask();
             // Release the lock on main so it can continue execution.
             main_semaphore.Release();
+
             try
             { 
                 string torrent_name = ReceiveHandshakeSeeding();
-                torrent_data = MainProc.torrent_file_dict[torrent_name];
-                file_manager = MainProc.file_dict[torrent_name];
+                torrent_data = FriendTorrent.torrent_dict[torrent_name];
+                file_manager = FriendTorrent.file_dict[torrent_name];
                 SendHandshake();
                 SendBitField();
                 ReceivePackets();

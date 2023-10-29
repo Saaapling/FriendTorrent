@@ -10,17 +10,23 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using static BTProtocol.BitTorrent.Logger;
 
+
+using System.Runtime.Serialization;
+using System.Xml;
+using System.Net.Http;
+
 namespace BTProtocol.BitTorrent
 {
     internal static class Utils
     {
-        public static Logger logger = new Logger(LoggingLevel.Info, (int) DebugFlags.All);
+        public static Logger logger = new Logger(LoggingLevel.Debug, (int) DebugFlags.All);
 
         public static BencodeParser parser = new BencodeParser();
         public const int BLOCK_SIZE = 16384; //2^14
         static BinaryFormatter serializer = new BinaryFormatter();
         public static string LOCAL_IP_ADDRESS = GetLocalIPAddress();
         public static string PUBLIC_IP_ADDRESS = GetPublicIPAddress();
+        public static int SEEDING_PORT = 6889;
 
         public static string UrlSafeStringInfohash(byte[] Infohash)
         {
@@ -88,12 +94,12 @@ namespace BTProtocol.BitTorrent
             return size_bytes;
         }
 
-        public static byte GetBitfieldByte(int[] peice_status, int pointer)
+        public static byte GetBitfieldByte(int[] piece_status, int pointer)
         {
             int value = 0;
-            for (int i = 0; i < 8 && pointer + i < peice_status.Length; i++)
+            for (int i = 0; i < 8 && pointer + i < piece_status.Length; i++)
             {
-                if (peice_status[pointer + i] == 1)
+                if (piece_status[pointer + i] == 1)
                 {
                     value += 1 << (7 - i);
                 }
@@ -117,16 +123,20 @@ namespace BTProtocol.BitTorrent
 
         public static void SerializeTFData(TFData file_data)
         {
-            Stream SaveFileStream = File.Create(MainProc.serialized_path + file_data.torrent_name);
-            serializer.Serialize(SaveFileStream, file_data);
-            SaveFileStream.Close();
+            DataContractSerializer serializer = new DataContractSerializer(typeof(TFData));
+            FileStream writer = new FileStream(FriendTorrent.serialized_path + file_data.torrent_name, FileMode.Create);
+            serializer.WriteObject(writer, file_data);
+            writer.Close();
         }
 
         public static TFData DeserializeTFData(string file_path)
         {
-            Stream openFileStream = File.OpenRead(file_path);
-            TFData file_data = (TFData)serializer.Deserialize(openFileStream);
+            DataContractSerializer serializer = new DataContractSerializer(typeof(TFData));
+            FileStream openFileStream = new FileStream(file_path, FileMode.Open);
+            XmlDictionaryReader reader = XmlDictionaryReader.CreateTextReader(openFileStream, new XmlDictionaryReaderQuotas());
+            TFData file_data = (TFData)serializer.ReadObject(reader, true);
             file_data.ResetStatus();
+            openFileStream.Close();
             return file_data;
         }
 
@@ -153,17 +163,15 @@ namespace BTProtocol.BitTorrent
 
         private static string GetPublicIPAddress()
         {
-            string address = "";
-            WebRequest request = WebRequest.Create("http://checkip.dyndns.org/");
-            using (WebResponse response = request.GetResponse())
-            using (StreamReader stream = new StreamReader(response.GetResponseStream()))
-            {
-                address = stream.ReadToEnd();
-            }
+            HttpClient client = new HttpClient();
+            HttpResponseMessage response = client.GetAsync("http://checkip.dyndns.org/").Result;
+            string address = response.Content.ReadAsStringAsync().Result;
 
             int first = address.IndexOf("Address: ") + 9;
             int last = address.LastIndexOf("</body>");
             address = address.Substring(first, last - first);
+            logger.Info($"Public IP Address: {address}");
+            //address = "173.67.0.40"
 
             return address;
         }

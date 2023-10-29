@@ -40,6 +40,8 @@ namespace BTProtocol.BitTorrent
         public Events _event;
         public byte compact; // 0 - False, 1 - True
 
+        public int[] new_peices;
+
         public TFData(Torrent torrent_data, string filename)
         {
             torrent_name = filename;
@@ -51,10 +53,10 @@ namespace BTProtocol.BitTorrent
                 piece_hash[idx] = new byte[20];
                 Array.Copy(torrent_data.Pieces, i, piece_hash[idx], 0, 20);
             }
+            piece_status = new int[piece_hash.Length];
             peer_list = new List<(string, int)>();
             connected_peers = new List<(string, int)>();
             peer_list_indx = 0;
-            piece_status = new int[piece_hash.Length];
             bytes_uploaded = 0;
             bytes_downloaded = 0;
             _event = Events.started;
@@ -99,7 +101,6 @@ namespace BTProtocol.BitTorrent
             return false;
         }
 
-        // Todo: Serialize piece, can have a function in utils that does the serialization. Look at mainproc
         public bool SetPieceStatus(int piece, int status)
         {
             bool result = false;
@@ -113,7 +114,7 @@ namespace BTProtocol.BitTorrent
 
         public bool VerifyPiece(int index, byte[] data)
         {
-            using (SHA1Managed sha1 = new SHA1Managed())
+            using (SHA1 sha1 = SHA1.Create())
             {
                 byte[] hash = sha1.ComputeHash(data);
                 return hash.SequenceEqual(piece_hash[index]);

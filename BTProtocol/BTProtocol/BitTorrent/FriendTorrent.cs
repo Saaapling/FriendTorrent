@@ -13,12 +13,12 @@ using static BTProtocol.BitTorrent.Utils;
 
 namespace BTProtocol.BitTorrent
 {
-    class MainProc
+    class FriendTorrent
     {
         public static string peerid { get; set; }
-        public const string resource_path = @"../../Resources/";
+        public const string resource_path = @"../../../Resources/";
         public const string serialized_path = resource_path + "TorrentData/";
-        public static Dictionary<string, TFData> torrent_file_dict = new Dictionary<string, TFData>();
+        public static Dictionary<string, TFData> torrent_dict = new Dictionary<string, TFData>();
         public static Dictionary<string, TrackerManager> tracker_dict = new Dictionary<string, TrackerManager>();
         public static Dictionary<string, FileManager> file_dict = new Dictionary<string, FileManager>();
 
@@ -27,11 +27,7 @@ namespace BTProtocol.BitTorrent
             StringBuilder sb = new StringBuilder();
             sb.Append("ds_bit");
             sb.Append(Environment.MachineName.ToString());
-            if (sb.Length >= 20)
-            {
-                peerid = sb.ToString().Substring(0, 20);
-            }
-            else
+            if (sb.Length < 20)
             {
                 int rest = 20 - sb.Length;
                 Random random = new Random();
@@ -39,8 +35,8 @@ namespace BTProtocol.BitTorrent
                 {
                     sb.Append(random.Next() % 10);
                 }
-                peerid = sb.ToString();
             }
+            peerid = sb.ToString().Substring(0, 20);
         }
 
         private static Dictionary<string, Torrent> ParseTorrentFiles(string resource_path)
@@ -56,22 +52,22 @@ namespace BTProtocol.BitTorrent
             Dictionary<string, Torrent> torrents = new Dictionary<string, Torrent>();
             foreach (string file in torrent_files)
             {
-                Torrent torrent_file = Utils.parser.Parse<Torrent>(file);
+                Torrent torrent_file = parser.Parse<Torrent>(file);
                 string torrent_name = torrent_file.DisplayName;
                 string torrent_filedata_path = serialized_path + torrent_name;
                 TFData file_data;
                 if (File.Exists(torrent_filedata_path))
                 {
-                    file_data = Utils.DeserializeTFData(torrent_filedata_path);
+                    file_data = DeserializeTFData(torrent_filedata_path);
                     torrent_data_files.Remove(torrent_filedata_path);
                 }
                 else
                 {
                     file_data = new TFData(torrent_file, torrent_name);
-                    Utils.SerializeTFData(file_data);
+                    SerializeTFData(file_data);
                 }
                 file_dict.Add(torrent_name, new FileManager(torrent_file));
-                torrent_file_dict.Add(torrent_name, file_data);
+                torrent_dict.Add(torrent_name, file_data);
                 torrents.Add(torrent_name, torrent_file);
             }
 
@@ -91,22 +87,16 @@ namespace BTProtocol.BitTorrent
             InitPeerid(); 
             Dictionary<string, Torrent> torrents = ParseTorrentFiles(resource_path);
 
-            //SeedingThreadManager test = new SeedingThreadManager(25);
-            //Task test_task = new Task(() => test.StartSeeding());
-            //test_task.Start();
-            //Thread.Sleep(360000000);
-
             // For each torrent file found, create and contact its tracker, and set up
             // Timers to reconnect with the tracker after a specified amount of time has passed
             foreach (KeyValuePair<string, Torrent> torrent in torrents)
             {
-                TrackerManager tracker = new TrackerManager(torrent.Value, torrent_file_dict[torrent.Key]);
+                TrackerManager tracker = new TrackerManager(torrent.Value, torrent_dict[torrent.Key]);
                 tracker_dict.Add(torrent.Key, tracker);
             }
 
-            foreach (KeyValuePair<string, TFData> torrent in torrent_file_dict)
+            foreach (KeyValuePair<string, TFData> torrent in torrent_dict)
             {
-                // Check download status
                 if (torrent.Value.CheckDownloadStatus())
                 {
                     file_dict[torrent.Key].Initialize(FileAccess.Read);
@@ -123,7 +113,7 @@ namespace BTProtocol.BitTorrent
             // Create thread-pools for downloading and uploading (25 down, 5 up)
             SeedingThreadManager seeding_task = new SeedingThreadManager(5);
             Task seeding_manager = new Task(() => seeding_task.StartSeeding());
-            seeding_manager.Start();
+            //seeding_manager.Start();
 
             DownloadingThreadManager downloading_task = new DownloadingThreadManager(25);
             Task download_manager = new Task(() => downloading_task.StartDownloads());

@@ -25,11 +25,11 @@ namespace BTProtocol
             }
         }
 
-        private const string path = @"../../TorrentDownloads/";
+        private const string path = @"../../../TorrentDownloads/";
         private long[] file_sizes = null;
-        public List<TFile>[] piece_filemap = null;
-        Torrent torrent;
-        public long piece_size { get; }
+        private readonly Torrent torrent;
+        private List<TFile>[] piece_filemap = null;
+        private long piece_size { get; }
         public Semaphore tf_lock { get; }
 
         public FileManager(Torrent torrent_data)
@@ -50,53 +50,62 @@ namespace BTProtocol
             Directory.CreateDirectory(torrent_folder);
             if (torrent.File != null)
             {
-                TFile file;
+                // Single File torrent
                 string torrent_path = torrent_folder + torrent.File.FileName;
                 FileStream fs = File.Open(torrent_path, FileMode.OpenOrCreate, fileAccess, FileShare.Read);
-                file_sizes = new long[1] { torrent.TotalSize };
+                file_sizes = new long[] { torrent.TotalSize };
                 for (int i = 0; i < pieces; i++)
                 {
-                    file = new TFile(0, fs, i * piece_size);
+                    TFile file = new TFile(0, fs, i * piece_size);
                     piece_filemap[i] = new List<TFile> { file };
                 }
             }
             else
             {
-                int file_count = torrent.Files.Count;
-                FileStream[] filestreams = new FileStream[file_count];
-                long[] total_offsets = new long[file_count + 1];
+                // Multi-file torrent
+                int file_count = torrent.Files.Count, i;
                 file_sizes = new long[file_count];
+                long[] total_offsets = new long[file_count + 1];
                 total_offsets[0] = 0;
-                for (int i = 0; i < file_count; i++)
+
+                FileStream[] filestreams = new FileStream[file_count];
+                for (i = 0; i < file_count; i++)
                 {
-                    FileStream fs = File.Open(torrent_folder + torrent.Files[i].FileName, FileMode.OpenOrCreate, fileAccess, FileShare.Read);
-                    filestreams[i] = fs;
+                    filestreams[i] = File.Open(torrent_folder + torrent.Files[i].FileName, FileMode.OpenOrCreate, fileAccess, FileShare.Read);
                     total_offsets[i + 1] = total_offsets[i] + torrent.Files[i].FileSize;
                     file_sizes[i] = torrent.Files[i].FileSize;
                 }
 
                 int curr = 0;
-                for (int i = 0; i < pieces; i++)
+                long offset;
+                for (i = 0; i < pieces - 1; i++)
                 {
-                    long offset = i * piece_size;
+                    offset = i * piece_size;
                     piece_filemap[i] = new List<TFile>();
-
-                    while (curr < file_count && offset + piece_size > total_offsets[curr + 1])
+                    TFile file = new TFile(curr, filestreams[curr], Math.Max(0, offset - total_offsets[curr]));
+                    while (offset + piece_size >= total_offsets[curr + 1])
                     {
-                        TFile file = new TFile(curr, filestreams[curr], Math.Max(0, offset - total_offsets[curr]));
                         piece_filemap[i].Add(file);
+                        file = new TFile(curr, filestreams[curr], Math.Max(0, offset - total_offsets[curr]));
                         curr++;
                     }
 
-                    if (i != pieces - 1)
-                    {
-                        TFile file = new TFile(curr, filestreams[curr], Math.Max(0, offset - total_offsets[curr]));
-                        piece_filemap[i].Add(file);
-                    }
+                    // Add current file to current piece
+                    piece_filemap[i].Add(file);
+                }
+
+                // Add remaining files as TFiles for last piece
+                offset = i * piece_size;
+                piece_filemap[i] = new List<TFile>();
+                while (curr < file_count)
+                {
+                    TFile file = new TFile(curr, filestreams[curr], Math.Max(0, offset - total_offsets[curr]));
+                    piece_filemap[i].Add(file);
+                    curr++;
                 }
             }
         }
-
+        
         public void WritePiece(int piece_idx, byte[] data)
         {
             List<TFile> files = piece_filemap[piece_idx];
@@ -112,9 +121,10 @@ namespace BTProtocol
                 fs.Flush();
             }
         }
+
         public byte[] ReadPieceBlock(int piece_idx, int offset, int length)
         {
-            // All files
+            // All files associated with this piece
             List<TFile> files = piece_filemap[piece_idx];
 
             byte[] data = new byte[length];
@@ -148,22 +158,29 @@ namespace BTProtocol
             return data;
         }
 
+        public long GetPieceSize(int next_piece)
+        {
+            if ((next_piece == piece_filemap.Length - 1) && (torrent.TotalSize % piece_size != 0))
+            {
+                return torrent.TotalSize % piece_size;
+            }
+            return piece_size;
+        }
+
         public void SetReadOnly()
         {
             HashSet<int> read_only_files = new HashSet<int>();
             Dictionary<int, FileStream> filestreams = new Dictionary<int, FileStream>();
-            for (int index = 0; index < piece_filemap.Length; index++ )
+            for (int index = 0; index < piece_filemap.Length; index++)
             {
                 for (int j = 0; j < piece_filemap[index].Count; j++)
                 {
                     TFile file = piece_filemap[index][j];
-                    FileStream fileStream = file.filestream;
                     if (!(read_only_files.Contains(file.index)))
                     {
-                        fileStream.Close();
-                        fileStream = File.Open(file.filestream.Name, FileMode.Open, FileAccess.Read, FileShare.Read);
+                        file.filestream.Close();
                         read_only_files.Add(file.index);
-                        filestreams[file.index] = fileStream;
+                        filestreams[file.index] = File.Open(file.filestream.Name, FileMode.Open, FileAccess.Read, FileShare.Read);
                     }
                     file.filestream = filestreams[file.index];
                     piece_filemap[index][j] = file;
